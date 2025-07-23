@@ -221,6 +221,7 @@ The following device roles have been working:
 - **Statistics**: View statistics about nodes, hardware, and roles.
 - **Wall of Shame**: View devices with low battery levels.
 - **Fortune Teller**: Get a random fortune. Pulls from the fortunes.txt file. Feel free to edit this file remove or add more if you like.
+- **Tools Menu**: Placeholder for future tools.
 
 ## Usage
 
