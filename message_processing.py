@@ -11,7 +11,9 @@ from command_handlers import (
     handle_post_channel_command, handle_list_channels_command, handle_quick_help_command,
     handle_tools_command, handle_tools_steps
 )
-from db_operations import add_bulletin, add_mail, delete_bulletin, delete_mail, get_db_connection, add_channel
+from db_operations import (add_bulletin, add_mail, delete_bulletin, delete_mail,
+                           get_db_connection, add_channel,
+                           has_welcomed_node, add_welcomed_node)
 from js8call_integration import handle_js8call_command, handle_js8call_steps, handle_group_message_selection
 from utils import get_user_state, get_node_short_name, get_node_id_from_num, send_message
 
@@ -211,6 +213,13 @@ def on_receive(packet, interface):
                 else:
                     logging.info("Ignoring non-sync message from known BBS node")
             elif to_id is not None and to_id != 0 and to_id != 255 and to_id == interface.myInfo.my_node_num:
+                # Send a configurable welcome message to first-time DM senders
+                if sender_node_id not in bbs_nodes and not has_welcomed_node(sender_node_id):
+                    welcome_message = getattr(interface, 'welcome_message', '')
+                    if welcome_message:
+                        send_message(welcome_message, sender_node_id, interface)
+                    add_welcomed_node(sender_node_id)
+
                 process_message(sender_id, message_string, interface, is_sync_message=False)
             else:
                 logging.info("Ignoring message sent to group chat or from unknown node")

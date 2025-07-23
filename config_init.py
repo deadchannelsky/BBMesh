@@ -120,6 +120,8 @@ def initialize_config(config_file: str = None) -> dict[str, Any]:
 
     print(f"Nodes with Urgent board permissions: {allowed_nodes}")
 
+    welcome_message = config.get('messages', 'welcome_message', fallback='')
+
     return {
         'config': config,
         'interface_type': interface_type,
@@ -127,6 +129,7 @@ def initialize_config(config_file: str = None) -> dict[str, Any]:
         'port': port,
         'bbs_nodes': bbs_nodes,
         'allowed_nodes': allowed_nodes,
+        'welcome_message': welcome_message,
         'mqtt_topic': 'meshtastic.receive'
     }
 

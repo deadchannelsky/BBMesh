@@ -48,6 +48,10 @@ def initialize_database():
                     name TEXT NOT NULL,
                     url TEXT NOT NULL
                 );''')
+    # Track nodes that have already received a welcome message
+    c.execute('''CREATE TABLE IF NOT EXISTS welcomed_nodes (
+                    node_id TEXT PRIMARY KEY
+                );''')
     conn.commit()
     print("Database schema initialized.")
 
@@ -164,3 +168,19 @@ def get_sender_id_by_mail_id(mail_id):
     if result:
         return result[0]
     return None
+
+
+def has_welcomed_node(node_id: str) -> bool:
+    """Check if node_id exists in welcomed_nodes table."""
+    conn = get_db_connection()
+    c = conn.cursor()
+    c.execute("SELECT 1 FROM welcomed_nodes WHERE node_id = ?", (node_id,))
+    return c.fetchone() is not None
+
+
+def add_welcomed_node(node_id: str) -> None:
+    """Insert node_id into welcomed_nodes table if not already present."""
+    conn = get_db_connection()
+    c = conn.cursor()
+    c.execute("INSERT OR IGNORE INTO welcomed_nodes (node_id) VALUES (?)", (node_id,))
+    conn.commit()
