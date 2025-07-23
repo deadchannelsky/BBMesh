@@ -9,7 +9,9 @@ from command_handlers import (
     handle_read_mail_command, handle_check_mail_command, handle_delete_mail_confirmation, handle_post_bulletin_command,
     handle_check_bulletin_command, handle_read_bulletin_command, handle_read_channel_command,
     handle_post_channel_command, handle_list_channels_command, handle_quick_help_command,
-    handle_tools_command, handle_tools_steps
+    handle_tools_command, handle_tools_steps,
+    handle_games_command, handle_games_steps,
+    handle_dopewars_command, handle_dopewars_steps
 )
 from db_operations import add_bulletin, add_mail, delete_bulletin, delete_mail, get_db_connection, add_channel
 from js8call_integration import handle_js8call_command, handle_js8call_steps, handle_group_message_selection
@@ -20,6 +22,7 @@ main_menu_handlers = {
     "b": lambda sender_id, interface: handle_help_command(sender_id, interface, 'bbs'),
     "u": lambda sender_id, interface: handle_help_command(sender_id, interface, 'utilities'),
     "t": handle_tools_command,
+    "g": handle_games_command,
     "x": handle_help_command
 }
 
@@ -41,6 +44,12 @@ utilities_menu_handlers = {
 
 
 tools_menu_handlers = {
+    "x": handle_help_command
+}
+
+
+games_menu_handlers = {
+    "d": handle_dopewars_command,
     "x": handle_help_command
 }
 
@@ -116,6 +125,8 @@ def process_message(sender_id, message, interface, is_sync_message=False):
                     handlers = bbs_menu_handlers
                 elif menu_name == 'utilities':
                     handlers = utilities_menu_handlers
+                elif menu_name == 'games':
+                    handlers = games_menu_handlers
                 else:
                     handlers = main_menu_handlers
             elif state and state['command'] == 'BULLETIN_MENU':
@@ -124,6 +135,8 @@ def process_message(sender_id, message, interface, is_sync_message=False):
                 handlers = board_action_handlers
             elif state and state['command'] == 'TOOLS':
                 handlers = tools_menu_handlers
+            elif state and state['command'] == 'GAMES':
+                handlers = games_menu_handlers
             elif state and state['command'] == 'JS8CALL_MENU':
                 handle_js8call_steps(sender_id, message, state['step'], interface, state)
                 return
@@ -179,6 +192,10 @@ def process_message(sender_id, message, interface, is_sync_message=False):
                     handle_js8call_steps(sender_id, message, step, interface, state)
                 elif command == 'TOOLS':
                     handle_tools_steps(sender_id, message, step, interface)
+                elif command == 'GAMES':
+                    handle_games_steps(sender_id, message, step, interface)
+                elif command == 'DOPEWARS':
+                    handle_dopewars_steps(sender_id, message, step, interface)
                 elif command == 'GROUP_MESSAGES':
                     handle_group_message_selection(sender_id, message, step, state, interface)
                 else:

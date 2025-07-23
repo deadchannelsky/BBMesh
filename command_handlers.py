@@ -25,6 +25,7 @@ main_menu_items = config['menu']['main_menu_items'].split(',')
 bbs_menu_items = config['menu']['bbs_menu_items'].split(',')
 utilities_menu_items = config['menu']['utilities_menu_items'].split(',')
 tools_menu_items = config['menu'].get('tools_menu_items', 'X').split(',')
+games_menu_items = config['menu'].get('games_menu_items', 'D,X').split(',')
 
 
 def build_menu(items, menu_name):
@@ -55,6 +56,10 @@ def build_menu(items, menu_name):
             menu_str += "[F]ortune\n"
         elif item.strip() == 'W':
             menu_str += "[W]all of Shame\n"
+        elif item.strip() == 'G':
+            menu_str += "[G]ames\n"
+        elif item.strip() == 'D':
+            menu_str += "[D]opewars\n"
     return menu_str
 
 def handle_help_command(sender_id, interface, menu_name=None):
@@ -64,6 +69,8 @@ def handle_help_command(sender_id, interface, menu_name=None):
             response = build_menu(bbs_menu_items, "📰BBS Menu📰")
         elif menu_name == 'utilities':
             response = build_menu(utilities_menu_items, "🛠️Utilities Menu🛠️")
+        elif menu_name == 'games':
+            response = build_menu(games_menu_items, "🎮Games Menu🎮")
     else:
         update_user_state(sender_id, {'command': 'MAIN_MENU', 'step': 1})  # Reset to main menu state
         mail = get_mail(get_node_id_from_num(sender_id, interface))
@@ -133,6 +140,47 @@ def handle_tools_steps(sender_id, message, step, interface):
         else:
             send_message("No tools implemented yet.", sender_id, interface)
             handle_tools_command(sender_id, interface)
+
+
+def handle_games_command(sender_id, interface):
+    """Display the games menu."""
+    response = build_menu(games_menu_items, "🎮Games Menu🎮")
+    send_message(response, sender_id, interface)
+    update_user_state(sender_id, {'command': 'GAMES', 'step': 1})
+
+
+def handle_games_steps(sender_id, message, step, interface):
+    message = message.lower().strip()
+    if len(message) == 2 and message[1] == 'x':
+        message = message[0]
+
+    if step == 1:
+        if message == 'x':
+            handle_help_command(sender_id, interface)
+        elif message == 'd':
+            handle_dopewars_command(sender_id, interface)
+        else:
+            send_message("Invalid option. Please choose again.", sender_id, interface)
+            handle_games_command(sender_id, interface)
+
+
+def handle_dopewars_command(sender_id, interface):
+    """Placeholder for Dopewars game."""
+    send_message("Dopewars is not yet implemented.", sender_id, interface)
+    update_user_state(sender_id, {'command': 'DOPEWARS', 'step': 1})
+
+
+def handle_dopewars_steps(sender_id, message, step, interface):
+    message = message.lower().strip()
+    if len(message) == 2 and message[1] == 'x':
+        message = message[0]
+
+    if step == 1:
+        if message == 'x':
+            handle_games_command(sender_id, interface)
+        else:
+            send_message("Dopewars is under construction.", sender_id, interface)
+            handle_dopewars_command(sender_id, interface)
 
 
 def handle_stats_steps(sender_id, message, step, interface):
