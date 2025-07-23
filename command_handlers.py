@@ -24,6 +24,7 @@ config.read('config.ini')
 main_menu_items = config['menu']['main_menu_items'].split(',')
 bbs_menu_items = config['menu']['bbs_menu_items'].split(',')
 utilities_menu_items = config['menu']['utilities_menu_items'].split(',')
+tools_menu_items = config['menu'].get('tools_menu_items', 'X').split(',')
 
 
 def build_menu(items, menu_name):
@@ -38,6 +39,8 @@ def build_menu(items, menu_name):
                 menu_str += "[B]BS\n"
         elif item.strip() == 'U':
             menu_str += "[U]tilities\n"
+        elif item.strip() == 'T':
+            menu_str += "[T]ools\n"
         elif item.strip() == 'X':
             menu_str += "E[X]IT\n"
         elif item.strip() == 'M':
@@ -110,6 +113,26 @@ def handle_fortune_command(sender_id, interface):
         send_message(decorated_fortune, sender_id, interface)
     except Exception as e:
         send_message(f"Error generating fortune: {e}", sender_id, interface)
+
+
+def handle_tools_command(sender_id, interface):
+    """Display the tools menu (placeholder)."""
+    response = "🧰Tools Menu🧰\nNo tools available yet.\nE[X]IT"
+    send_message(response, sender_id, interface)
+    update_user_state(sender_id, {'command': 'TOOLS', 'step': 1})
+
+
+def handle_tools_steps(sender_id, message, step, interface):
+    message = message.lower().strip()
+    if len(message) == 2 and message[1] == 'x':
+        message = message[0]
+
+    if step == 1:
+        if message == 'x':
+            handle_help_command(sender_id, interface)
+        else:
+            send_message("No tools implemented yet.", sender_id, interface)
+            handle_tools_command(sender_id, interface)
 
 
 def handle_stats_steps(sender_id, message, step, interface):
