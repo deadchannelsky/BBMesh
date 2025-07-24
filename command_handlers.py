@@ -258,10 +258,12 @@ def handle_tradewars_steps(sender_id, message, step, interface):
         try:
             data = sock.recv(4096)
             if data == b"":
-                raise ConnectionError("Server disconnected")
-            reply = data.decode()
+                logging.info("No output received from Tradewars server.")
+                reply = ""
+            else:
+                reply = data.decode()
         except socket.timeout:
-            # Treat timeouts as no data rather than an error
+            logging.info("No output received from Tradewars server (timeout).")
             reply = ""
     except Exception as e:
         logging.error(f"Error communicating with TradeWars server: {e}")
