@@ -1,6 +1,10 @@
 import logging
 import time
 import configparser
+import socket
+import subprocess
+import os
+import sys
 
 _config = configparser.ConfigParser()
 _config.read('config.ini')
@@ -95,3 +99,28 @@ def send_channel_to_bbs_nodes(name, url, bbs_nodes, interface):
     message = f"CHANNEL|{name}|{url}"
     for node_id in bbs_nodes:
         send_message(message, node_id, interface)
+
+
+def tradewars_server_alive(port=4242, host="127.0.0.1", timeout=1):
+    """Check if the Tradewars server is reachable."""
+    try:
+        with socket.create_connection((host, port), timeout=timeout):
+            return True
+    except OSError:
+        return False
+
+
+def start_tradewars_server(port=4242, host="127.0.0.1"):
+    """Start Tradewars server if it's not already running."""
+    if tradewars_server_alive(port=port, host=host):
+        return True
+
+    server_path = os.path.join(os.path.dirname(__file__), "tradewars_server.py")
+    try:
+        subprocess.Popen([sys.executable, server_path])
+        time.sleep(1)
+    except Exception as e:
+        logging.error(f"Unable to start Tradewars server: {e}")
+        return False
+
+    return tradewars_server_alive(port=port, host=host)
