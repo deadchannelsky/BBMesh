@@ -5,6 +5,7 @@ import time
 
 from meshtastic import BROADCAST_NUM
 from dopewars import playDopeWars, dwGameDayDb
+from tradewars_interface import play_tradewars, _player_states
 
 from db_operations import (
     add_bulletin, add_mail, delete_mail,
@@ -160,6 +161,8 @@ def handle_games_steps(sender_id, message, step, interface):
             handle_help_command(sender_id, interface)
         elif message == 'd':
             handle_dopewars_command(sender_id, interface)
+        elif message == 't':
+            handle_tradewars_command(sender_id, interface)
         else:
             send_message("Invalid option. Please choose again.", sender_id, interface)
             handle_games_command(sender_id, interface)
@@ -192,6 +195,31 @@ def handle_dopewars_steps(sender_id, message, step, interface):
         handle_help_command(sender_id, interface)
     else:
         update_user_state(sender_id, {'command': 'DOPEWARS', 'step': 1})
+
+
+def handle_tradewars_command(sender_id, interface):
+    """Enter the Tradewars game."""
+    node_id = get_node_id_from_num(sender_id, interface)
+    response = play_tradewars(node_id, "")
+    send_message(response, sender_id, interface)
+    update_user_state(sender_id, {'command': 'TRADEWARS', 'step': 1})
+
+
+def handle_tradewars_steps(sender_id, message, step, interface):
+    message = message.strip()
+    if len(message) == 2 and message[1].lower() == 'x':
+        message = message[0]
+
+    node_id = get_node_id_from_num(sender_id, interface)
+    response = play_tradewars(node_id, message)
+    send_message(response, sender_id, interface)
+
+    in_game = node_id in _player_states
+
+    if not in_game:
+        handle_help_command(sender_id, interface)
+    else:
+        update_user_state(sender_id, {'command': 'TRADEWARS', 'step': 1})
 
 
 def handle_stats_steps(sender_id, message, step, interface):
