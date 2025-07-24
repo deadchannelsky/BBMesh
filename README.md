@@ -1,12 +1,16 @@
-# TC²-BBS Meshtastic Version
+# BBMesh
 
 [![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/B0B1OZ22Z)
 
-This is the TC²-BBS system integrated with Meshtastic devices. The system allows for message handling, bulletin boards, mail systems, and a channel directory.
+BBMesh is a fork of TC²-BBS integrated with Meshtastic devices. The system allows for message handling, bulletin boards, mail systems, and a channel directory.
+
+### Attribution
+
+This project would not exist without the work of [TC²-BBS](https://github.com/TheCommsChannel/TC2-BBS-mesh). Many thanks to TheCommsChannel for creating and maintaining the original BBS system.
 
 ### Docker
 
-If you're a Docker user, TC²-BBS Meshtastic is available on Docker Hub!
+If you're a Docker user, BBMesh is available on Docker Hub!
 
 [![Docker HUB](https://icon-icons.com/downloadimage.php?id=151885&root=2530/PNG/128/&file=docker_button_icon_151885.png)](https://hub.docker.com/r/thealhu/tc2-bbs-mesh)
 
@@ -32,8 +36,8 @@ If you're a Docker user, TC²-BBS Meshtastic is available on Docker Hub!
    
    ```sh
    cd ~
-   git clone https://github.com/TheCommsChannel/TC2-BBS-mesh.git
-   cd TC2-BBS-mesh
+   git clone https://github.com/deadchannelsky/BBMesh.git
+   cd BBMesh
    ```
 
 2. Set up a Python virtual environment:  
@@ -151,17 +155,17 @@ If you would like to have the script automatically run at boot, follow the steps
    
    ```sh
    User=pi
-   WorkingDirectory=/home/pi/TC2-BBS-mesh
-   ExecStart=/home/pi/TC2-BBS-mesh/venv/bin/python3 /home/pi/TC2-BBS-mesh/server.py
+   WorkingDirectory=/home/pi/BBMesh
+   ExecStart=/home/pi/BBMesh/venv/bin/python3 /home/pi/BBMesh/server.py
    ```
    
-   The file is currently setup for a user named 'pi' and assumes that the TC2-BBS-mesh directory is located in the home directory (which it should be if the earlier directions were followed)
+   The file is currently set up for a user named 'pi' and assumes that the BBMesh directory is located in the home directory (which it should be if the earlier directions were followed)
    
    We just need to replace the 4 parts that have "pi" in those 3 lines with your username.
 
 2. **Configuring systemd**
    
-   From the TC2-BBS-mesh directory, run the following commands:
+   From the BBMesh directory, run the following commands:
    
    ```sh
    sudo cp mesh-bbs.service /etc/systemd/system/
@@ -230,7 +234,7 @@ Make selections by sending messages based on the letter or number in brackets - 
 
 A video of it in use is available on our YouTube channel:
 
-[![TC²-BBS-Mesh](https://img.youtube.com/vi/d6LhY4HoimU/0.jpg)](https://www.youtube.com/watch?v=d6LhY4HoimU)
+[![BBMesh](https://img.youtube.com/vi/d6LhY4HoimU/0.jpg)](https://www.youtube.com/watch?v=d6LhY4HoimU)
 
 ## Thanks
 

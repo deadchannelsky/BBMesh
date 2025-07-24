@@ -74,7 +74,7 @@ def handle_help_command(sender_id, interface, menu_name=None):
     else:
         update_user_state(sender_id, {'command': 'MAIN_MENU', 'step': 1})  # Reset to main menu state
         mail = get_mail(get_node_id_from_num(sender_id, interface))
-        response = build_menu(main_menu_items, f"💾TC² BBS💾 (✉️:{len(mail)})")
+        response = build_menu(main_menu_items, f"💾The Pirate Wharf💾 (✉️:{len(mail)})")
     send_message(response, sender_id, interface)
 
 def get_node_name(node_id, interface):
