@@ -13,7 +13,10 @@ def get_user_state(user_id):
 
 
 def send_message(message, destination, interface):
-    max_payload_size = 200
+    # The radio hardware truncates messages longer than 63 characters. To
+    # ensure complete delivery we send messages in chunks slightly below
+    # that limit.
+    max_payload_size = 60
     for i in range(0, len(message), max_payload_size):
         chunk = message[i:i + max_payload_size]
         try:
