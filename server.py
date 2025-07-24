@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 """
-TC²-BBS Server for Meshtastic by TheCommsChannel (TC²)
+BBMesh Server for Meshtastic (forked from TC²-BBS by TheCommsChannel)
 Date: 07/14/2024
 Version: 0.1.6
 
@@ -63,7 +63,7 @@ def main():
     interface.bbs_nodes = system_config['bbs_nodes']
     interface.allowed_nodes = system_config['allowed_nodes']
 
-    logging.info(f"TC²-BBS is running on {system_config['interface_type']} interface...")
+    logging.info(f"BBMesh is running on {system_config['interface_type']} interface...")
 
     initialize_database()
 
