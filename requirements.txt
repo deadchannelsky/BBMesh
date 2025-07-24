@@ -1,2 +1,5 @@
 meshtastic
 pypubsub
+
+numpy
+pandas

@@ -150,6 +150,19 @@ options:
   --mqtt-topic MQTT_TOPIC, -t MQTT_TOPIC
                         MQTT topic to subscribe
 ```
+### Tradewars Server
+
+BBMesh includes a text-based Tradewars game. The game runs as a separate TCP server and is started automatically when a player selects Tradewars from the Games menu.
+
+To use it, install the additional dependencies and optionally start the server manually:
+
+```sh
+pip install numpy pandas
+python tradewars_server.py
+```
+
+The server listens on the port configured in the `[tradewars]` section of `config.ini`. You can also set the path to the Tradewars executable there.
+
 
 
 
