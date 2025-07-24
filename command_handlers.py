@@ -213,6 +213,9 @@ def handle_tradewars_command(sender_id, interface):
 
     try:
         sock = socket.create_connection((TW_HOST, TW_PORT), timeout=5)
+        # Disable the timeout after connecting so further reads do not raise
+        # socket.timeout exceptions during gameplay.
+        sock.settimeout(None)
     except OSError as e:
         logging.error(f"Unable to connect to TradeWars server: {e}")
         send_message("Unable to start Tradewars.", sender_id, interface)
@@ -252,10 +255,14 @@ def handle_tradewars_steps(sender_id, message, step, interface):
 
     try:
         sock.sendall(cmd.encode())
-        data = sock.recv(4096)
-        if not data:
-            raise ConnectionError("Server disconnected")
-        reply = data.decode()
+        try:
+            data = sock.recv(4096)
+            if data == b"":
+                raise ConnectionError("Server disconnected")
+            reply = data.decode()
+        except socket.timeout:
+            # Treat timeouts as no data rather than an error
+            reply = ""
     except Exception as e:
         logging.error(f"Error communicating with TradeWars server: {e}")
         send_message("Error communicating with Tradewars server.", sender_id, interface)
