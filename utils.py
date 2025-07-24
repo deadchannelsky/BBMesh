@@ -1,5 +1,10 @@
 import logging
 import time
+import configparser
+
+_config = configparser.ConfigParser()
+_config.read('config.ini')
+DEFAULT_DELAY_MS = _config.getint('settings', 'message_delay_ms', fallback=50)
 
 user_states = {}
 
@@ -33,7 +38,8 @@ def send_message(message, destination, interface):
             logging.info(f"REPLY SEND ERROR {e.message}")
 
         
-        time.sleep(2)
+        delay_sec = getattr(interface, 'message_delay', DEFAULT_DELAY_MS / 1000.0)
+        time.sleep(delay_sec)
 
 
 def get_node_info(interface, short_name):

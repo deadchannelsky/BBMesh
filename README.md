@@ -85,13 +85,16 @@ If you're a Docker user, BBMesh is available on Docker Hub!
    Windows Example:  
    `port = COM3`   
    
-   If using type = tcp you will need to uncomment the hostname = 192.168.x.x line and put in the IP address of your Meshtastic device.  
-   
-   **[sync]**  
-   Enter a list of other BBS nodes you would like to sync messages and bulletins with. Separate each by comma and no spaces as shown in the example below.   
+   If using type = tcp you will need to uncomment the hostname = 192.168.x.x line and put in the IP address of your Meshtastic device.
+
+   **[sync]**
+   Enter a list of other BBS nodes you would like to sync messages and bulletins with. Separate each by comma and no spaces as shown in the example below.
    You can find the nodeID in the menu under `Radio Configuration > User` for each node, or use this script for getting nodedb data from a device:  
    
-   [Meshtastic-Python-Examples/print-nodedb.py at main · pdxlocations/Meshtastic-Python-Examples (github.com)](https://github.com/pdxlocations/Meshtastic-Python-Examples/blob/main/print-nodedb.py)  
+   [Meshtastic-Python-Examples/print-nodedb.py at main · pdxlocations/Meshtastic-Python-Examples (github.com)](https://github.com/pdxlocations/Meshtastic-Python-Examples/blob/main/print-nodedb.py)
+
+   **[settings]**
+   `message_delay_ms` controls the pause in milliseconds between split message packets.
    
    Example Config:  
    
@@ -101,8 +104,11 @@ If you're a Docker user, BBMesh is available on Docker Hub!
    # port = /dev/ttyUSB0  
    # hostname = 192.168.x.x  
    
-   [sync]  
-   bbs_nodes = !f53f4abc,!f3abc123  
+   [sync]
+   bbs_nodes = !f53f4abc,!f3abc123
+
+   [settings]
+   message_delay_ms = 50
    ```
 
 ### Running the Server
