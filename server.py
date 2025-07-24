@@ -62,6 +62,7 @@ def main():
     interface = get_interface(system_config)
     interface.bbs_nodes = system_config['bbs_nodes']
     interface.allowed_nodes = system_config['allowed_nodes']
+    interface.message_delay = system_config.get('message_delay_ms', 50) / 1000.0
 
     logging.info(f"BBMesh is running on {system_config['interface_type']} interface...")
 

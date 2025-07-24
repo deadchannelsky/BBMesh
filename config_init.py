@@ -118,6 +118,8 @@ def initialize_config(config_file: str = None) -> dict[str, Any]:
     if allowed_nodes == ['']:
         allowed_nodes = []
 
+    message_delay_ms = config.getint('settings', 'message_delay_ms', fallback=50)
+
     print(f"Nodes with Urgent board permissions: {allowed_nodes}")
 
     return {
@@ -127,7 +129,8 @@ def initialize_config(config_file: str = None) -> dict[str, Any]:
         'port': port,
         'bbs_nodes': bbs_nodes,
         'allowed_nodes': allowed_nodes,
-        'mqtt_topic': 'meshtastic.receive'
+        'mqtt_topic': 'meshtastic.receive',
+        'message_delay_ms': message_delay_ms
     }
 
 
