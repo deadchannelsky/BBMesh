@@ -19,7 +19,7 @@ from db_operations import (
 from utils import (
     get_node_id_from_num, get_node_info,
     get_node_short_name, send_message,
-    update_user_state
+    update_user_state, get_user_state
 )
 from tradewars_server import HOST as TW_HOST, PORT as TW_PORT
 
@@ -240,11 +240,42 @@ def handle_tradewars_steps(sender_id, message, step, interface):
     if len(message) == 2 and message[1].lower() == 'x':
         message = message[0]
 
+    state = get_user_state(sender_id)
+    sock = state.get('socket') if state else None
+    if not sock:
+        handle_help_command(sender_id, interface)
+        return
+
+    # Map exit command to the game's expected value
     if message.lower() == 'x':
+        cmd = f"DISCONNECT {sender_id}\n"
+    else:
+        cmd = f"INPUT {sender_id} {message}\n"
+
+    try:
+        sock.sendall(cmd.encode())
+        reply = sock.recv(4096).decode()
+    except Exception as e:
+        logging.error(f"Error communicating with TradeWars server: {e}")
+        send_message("Error communicating with Tradewars server.", sender_id, interface)
+        try:
+            sock.close()
+        except Exception:
+            pass
+        handle_help_command(sender_id, interface)
+        return
+
+    if reply.strip():
+        send_message(reply.strip(), sender_id, interface)
+
+    if "Session closed" in reply:
+        try:
+            sock.close()
+        except Exception:
+            pass
         handle_help_command(sender_id, interface)
     else:
-        send_message("Tradewars is not implemented yet.", sender_id, interface)
-        handle_help_command(sender_id, interface)
+        update_user_state(sender_id, {'command': 'TRADEWARS', 'step': 1, 'socket': sock})
 
 
 def handle_stats_steps(sender_id, message, step, interface):
