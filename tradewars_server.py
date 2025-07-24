@@ -4,6 +4,7 @@ import threading
 import subprocess
 import queue
 import sys
+import signal
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 GAME_PATH = os.path.join(SCRIPT_DIR, "tradewars.py")
@@ -57,8 +58,38 @@ class Session:
         return self.read_all()
 
 
+server_socket = None
+connections = []
 sessions = {}
 lock = threading.Lock()
+
+
+def shutdown_server(signum=None, frame=None):
+    """Close all active sessions and client connections."""
+    print("Shutting down TradeWars server...")
+    for conn in list(connections):
+        try:
+            conn.sendall(b"SERVER_SHUTDOWN\n")
+            conn.close()
+        except Exception:
+            pass
+        try:
+            connections.remove(conn)
+        except ValueError:
+            pass
+    with lock:
+        for sess in sessions.values():
+            try:
+                sess.close()
+            except Exception:
+                pass
+        sessions.clear()
+    if server_socket:
+        try:
+            server_socket.close()
+        except Exception:
+            pass
+    sys.exit(0)
 
 def process_command(line):
     parts = line.strip().split(" ", 2)
@@ -96,7 +127,9 @@ def process_command(line):
 
 
 def serve():
+    global server_socket
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as srv:
+        server_socket = srv
         srv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         srv.bind((HOST, PORT))
         srv.listen()
@@ -106,19 +139,28 @@ def serve():
             threading.Thread(target=handle_client, args=(conn,), daemon=True).start()
 
 def handle_client(conn):
-    with conn:
-        conn.sendall(b"Connected\n")
-        buffer = ""
-        while True:
-            data = conn.recv(1024)
-            if not data:
-                break
-            buffer += data.decode()
-            while "\n" in buffer:
-                line, buffer = buffer.split("\n", 1)
-                resp = process_command(line)
-                if resp:
-                    conn.sendall(resp.encode())
+    connections.append(conn)
+    try:
+        with conn:
+            conn.sendall(b"Connected\n")
+            buffer = ""
+            while True:
+                data = conn.recv(1024)
+                if not data:
+                    break
+                buffer += data.decode()
+                while "\n" in buffer:
+                    line, buffer = buffer.split("\n", 1)
+                    resp = process_command(line)
+                    if resp:
+                        conn.sendall(resp.encode())
+    finally:
+        try:
+            connections.remove(conn)
+        except ValueError:
+            pass
 
 if __name__ == "__main__":
+    signal.signal(signal.SIGTERM, shutdown_server)
+    signal.signal(signal.SIGINT, shutdown_server)
     serve()

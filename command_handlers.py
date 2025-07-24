@@ -251,7 +251,10 @@ def handle_tradewars_steps(sender_id, message, step, interface):
 
     try:
         sock.sendall(cmd.encode())
-        reply = sock.recv(4096).decode()
+        data = sock.recv(4096)
+        if not data:
+            raise ConnectionError("Server disconnected")
+        reply = data.decode()
     except Exception as e:
         logging.error(f"Error communicating with TradeWars server: {e}")
         send_message("Error communicating with Tradewars server.", sender_id, interface)
@@ -265,7 +268,9 @@ def handle_tradewars_steps(sender_id, message, step, interface):
     if reply.strip():
         send_message(reply.strip(), sender_id, interface)
 
-    if "Session closed" in reply:
+    if "SERVER_SHUTDOWN" in reply:
+        send_message("TradeWars server shutting down.", sender_id, interface)
+    if "SERVER_SHUTDOWN" in reply or "Session closed" in reply:
         try:
             sock.close()
         except Exception:
