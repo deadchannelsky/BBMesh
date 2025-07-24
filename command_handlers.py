@@ -2,6 +2,10 @@ import configparser
 import logging
 import random
 import time
+import socket
+import subprocess
+import sys
+import os
 
 from meshtastic import BROADCAST_NUM
 from dopewars import playDopeWars, dwGameDayDb
@@ -17,6 +21,7 @@ from utils import (
     get_node_short_name, send_message,
     update_user_state
 )
+from tradewars_server import HOST as TW_HOST, PORT as TW_PORT
 
 # Read the configuration for menu options
 config = configparser.ConfigParser()
@@ -201,9 +206,33 @@ def handle_dopewars_steps(sender_id, message, step, interface):
 
 def handle_tradewars_command(sender_id, interface):
     """Enter the Tradewars game."""
-    # Placeholder for future Tradewars integration
-    send_message("Tradewars is not implemented yet.", sender_id, interface)
-    update_user_state(sender_id, {'command': 'TRADEWARS', 'step': 1})
+    sock = None
+    try:
+        sock = socket.create_connection((TW_HOST, TW_PORT), timeout=1)
+    except OSError:
+        server_path = os.path.join(os.path.dirname(__file__), "tradewars_server.py")
+        subprocess.Popen([sys.executable, server_path])
+        time.sleep(1)
+        try:
+            sock = socket.create_connection((TW_HOST, TW_PORT), timeout=5)
+        except OSError as e:
+            logging.error(f"Unable to start TradeWars server: {e}")
+            send_message("Unable to start Tradewars.", sender_id, interface)
+            return
+
+    try:
+        sock.recv(1024)
+        sock.sendall(f"CONNECT {sender_id}\n".encode())
+        welcome = sock.recv(4096).decode()
+    except Exception as e:
+        logging.error(f"Error communicating with TradeWars server: {e}")
+        send_message("Error connecting to Tradewars server.", sender_id, interface)
+        if sock:
+            sock.close()
+        return
+
+    send_message(welcome.strip(), sender_id, interface)
+    update_user_state(sender_id, {'command': 'TRADEWARS', 'step': 1, 'socket': sock})
 
 
 def handle_tradewars_steps(sender_id, message, step, interface):
