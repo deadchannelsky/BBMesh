@@ -4,6 +4,7 @@ import random
 import time
 
 from meshtastic import BROADCAST_NUM
+from dopewars import playDopeWars, dwGameDayDb
 
 from db_operations import (
     add_bulletin, add_mail, delete_mail,
@@ -165,22 +166,32 @@ def handle_games_steps(sender_id, message, step, interface):
 
 
 def handle_dopewars_command(sender_id, interface):
-    """Placeholder for Dopewars game."""
-    send_message("Dopewars is not yet implemented.", sender_id, interface)
+    """Enter the Dopewars game."""
+    node_id = get_node_id_from_num(sender_id, interface)
+    response = playDopeWars(node_id, '')
+    send_message(response, sender_id, interface)
     update_user_state(sender_id, {'command': 'DOPEWARS', 'step': 1})
 
 
 def handle_dopewars_steps(sender_id, message, step, interface):
-    message = message.lower().strip()
-    if len(message) == 2 and message[1] == 'x':
+    message = message.strip()
+    if len(message) == 2 and message[1].lower() == 'x':
         message = message[0]
 
-    if step == 1:
-        if message == 'x':
-            handle_games_command(sender_id, interface)
-        else:
-            send_message("Dopewars is under construction.", sender_id, interface)
-            handle_dopewars_command(sender_id, interface)
+    node_id = get_node_id_from_num(sender_id, interface)
+
+    if message.lower() == 'x':
+        message = 'e'
+
+    response = playDopeWars(node_id, message)
+    send_message(response, sender_id, interface)
+
+    in_game = any(p.get('userID') == node_id for p in dwGameDayDb)
+
+    if not in_game:
+        handle_help_command(sender_id, interface)
+    else:
+        update_user_state(sender_id, {'command': 'DOPEWARS', 'step': 1})
 
 
 def handle_stats_steps(sender_id, message, step, interface):
