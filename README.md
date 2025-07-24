@@ -1,5 +1,5 @@
 # BBMesh
-
+Support original TC2-BBS here:
 [![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/B0B1OZ22Z)
 
 BBMesh is a fork of TC²-BBS integrated with Meshtastic devices. The system allows for message handling, bulletin boards, mail systems, and a channel directory.
