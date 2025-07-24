@@ -11,7 +11,8 @@ from command_handlers import (
     handle_post_channel_command, handle_list_channels_command, handle_quick_help_command,
     handle_tools_command, handle_tools_steps,
     handle_games_command, handle_games_steps,
-    handle_dopewars_command, handle_dopewars_steps
+    handle_dopewars_command, handle_dopewars_steps,
+    handle_tradewars_command, handle_tradewars_steps
 )
 from db_operations import add_bulletin, add_mail, delete_bulletin, delete_mail, get_db_connection, add_channel
 from js8call_integration import handle_js8call_command, handle_js8call_steps, handle_group_message_selection
@@ -50,6 +51,7 @@ tools_menu_handlers = {
 
 games_menu_handlers = {
     "d": handle_dopewars_command,
+    "t": handle_tradewars_command,
     "x": handle_help_command
 }
 
@@ -196,6 +198,8 @@ def process_message(sender_id, message, interface, is_sync_message=False):
                     handle_games_steps(sender_id, message, step, interface)
                 elif command == 'DOPEWARS':
                     handle_dopewars_steps(sender_id, message, step, interface)
+                elif command == 'TRADEWARS':
+                    handle_tradewars_steps(sender_id, message, step, interface)
                 elif command == 'GROUP_MESSAGES':
                     handle_group_message_selection(sender_id, message, step, state, interface)
                 else:

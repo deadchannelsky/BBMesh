@@ -42,7 +42,10 @@ def build_menu(items, menu_name):
         elif item.strip() == 'U':
             menu_str += "[U]tilities\n"
         elif item.strip() == 'T':
-            menu_str += "[T]ools\n"
+            if menu_name == "🎮Games Menu🎮":
+                menu_str += "[T]radewars\n"
+            else:
+                menu_str += "[T]ools\n"
         elif item.strip() == 'X':
             menu_str += "E[X]IT\n"
         elif item.strip() == 'M':
@@ -160,6 +163,8 @@ def handle_games_steps(sender_id, message, step, interface):
             handle_help_command(sender_id, interface)
         elif message == 'd':
             handle_dopewars_command(sender_id, interface)
+        elif message == 't':
+            handle_tradewars_command(sender_id, interface)
         else:
             send_message("Invalid option. Please choose again.", sender_id, interface)
             handle_games_command(sender_id, interface)
@@ -192,6 +197,25 @@ def handle_dopewars_steps(sender_id, message, step, interface):
         handle_help_command(sender_id, interface)
     else:
         update_user_state(sender_id, {'command': 'DOPEWARS', 'step': 1})
+
+
+def handle_tradewars_command(sender_id, interface):
+    """Enter the Tradewars game."""
+    # Placeholder for future Tradewars integration
+    send_message("Tradewars is not implemented yet.", sender_id, interface)
+    update_user_state(sender_id, {'command': 'TRADEWARS', 'step': 1})
+
+
+def handle_tradewars_steps(sender_id, message, step, interface):
+    message = message.strip()
+    if len(message) == 2 and message[1].lower() == 'x':
+        message = message[0]
+
+    if message.lower() == 'x':
+        handle_help_command(sender_id, interface)
+    else:
+        send_message("Tradewars is not implemented yet.", sender_id, interface)
+        handle_help_command(sender_id, interface)
 
 
 def handle_stats_steps(sender_id, message, step, interface):
