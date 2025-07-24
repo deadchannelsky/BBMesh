@@ -95,6 +95,7 @@ If you're a Docker user, BBMesh is available on Docker Hub!
 
    **[settings]**
    `message_delay_ms` controls the pause in milliseconds between split message packets.
+   `message_split_len` sets how many characters are sent in each piece of a split message. The default of 60 keeps packets under the radio limit.
    
    Example Config:  
    
@@ -109,6 +110,7 @@ If you're a Docker user, BBMesh is available on Docker Hub!
 
    [settings]
    message_delay_ms = 50
+   message_split_len = 60
    ```
 
 ### Running the Server

@@ -5,6 +5,7 @@ import configparser
 _config = configparser.ConfigParser()
 _config.read('config.ini')
 DEFAULT_DELAY_MS = _config.getint('settings', 'message_delay_ms', fallback=50)
+DEFAULT_SPLIT_LEN = _config.getint('settings', 'message_split_len', fallback=60)
 
 user_states = {}
 
@@ -21,7 +22,7 @@ def send_message(message, destination, interface):
     # The radio hardware truncates messages longer than 63 characters. To
     # ensure complete delivery we send messages in chunks slightly below
     # that limit.
-    max_payload_size = 60
+    max_payload_size = getattr(interface, 'message_split_len', DEFAULT_SPLIT_LEN)
     for i in range(0, len(message), max_payload_size):
         chunk = message[i:i + max_payload_size]
         try:
