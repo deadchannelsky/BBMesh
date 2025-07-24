@@ -3,9 +3,6 @@ import logging
 import random
 import time
 import socket
-import subprocess
-import sys
-import os
 
 from meshtastic import BROADCAST_NUM
 from dopewars import playDopeWars, dwGameDayDb
@@ -19,7 +16,8 @@ from db_operations import (
 from utils import (
     get_node_id_from_num, get_node_info,
     get_node_short_name, send_message,
-    update_user_state, get_user_state
+    update_user_state, get_user_state,
+    tradewars_server_alive, start_tradewars_server
 )
 from tradewars_server import HOST as TW_HOST, PORT as TW_PORT
 
@@ -206,19 +204,18 @@ def handle_dopewars_steps(sender_id, message, step, interface):
 
 def handle_tradewars_command(sender_id, interface):
     """Enter the Tradewars game."""
-    sock = None
-    try:
-        sock = socket.create_connection((TW_HOST, TW_PORT), timeout=1)
-    except OSError:
-        server_path = os.path.join(os.path.dirname(__file__), "tradewars_server.py")
-        subprocess.Popen([sys.executable, server_path])
-        time.sleep(1)
-        try:
-            sock = socket.create_connection((TW_HOST, TW_PORT), timeout=5)
-        except OSError as e:
-            logging.error(f"Unable to start TradeWars server: {e}")
+    if not tradewars_server_alive(TW_PORT):
+        if not start_tradewars_server(TW_PORT):
+            logging.error("Unable to start TradeWars server")
             send_message("Unable to start Tradewars.", sender_id, interface)
             return
+
+    try:
+        sock = socket.create_connection((TW_HOST, TW_PORT), timeout=5)
+    except OSError as e:
+        logging.error(f"Unable to connect to TradeWars server: {e}")
+        send_message("Unable to start Tradewars.", sender_id, interface)
+        return
 
     try:
         sock.recv(1024)
