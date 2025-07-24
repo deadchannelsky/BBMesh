@@ -205,6 +205,7 @@ def handle_dopewars_steps(sender_id, message, step, interface):
 def handle_tradewars_command(sender_id, interface):
     """Enter the Tradewars game."""
     if not tradewars_server_alive(TW_PORT):
+        send_message("Starting Tradewars server...", sender_id, interface)
         if not start_tradewars_server(TW_PORT):
             logging.error("Unable to start TradeWars server")
             send_message("Unable to start Tradewars.", sender_id, interface)
