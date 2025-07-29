@@ -14,6 +14,10 @@ class SerialConfig:
     port: str = "/dev/ttyUSB0"
     baudrate: int = 115200
     timeout: float = 1.0
+    auto_resolve_conflicts: bool = True
+    stop_modemmanager: bool = True
+    stop_getty_services: bool = True
+    remove_stale_locks: bool = True
 
 
 @dataclass

@@ -5,6 +5,8 @@ Meshtastic interface for BBMesh
 import time
 import threading
 import os
+import fcntl
+import subprocess
 from typing import Optional, Callable, Dict, Any, List
 from dataclasses import dataclass
 from datetime import datetime
@@ -90,7 +92,7 @@ class MeshtasticInterface:
     
     def _pre_connection_checks(self, port: str) -> bool:
         """
-        Perform pre-connection diagnostic checks
+        Perform pre-connection diagnostic checks including exclusive lock testing
         
         Args:
             port: Serial port path
@@ -108,10 +110,10 @@ class MeshtasticInterface:
         
         self.logger.debug(f"✓ Port {port} exists")
         
-        # Check port accessibility
+        # Check basic port accessibility
         try:
             with serial.Serial(port, self.config.serial.baudrate, timeout=0.1) as ser:
-                self.logger.debug(f"✓ Port {port} is accessible")
+                self.logger.debug(f"✓ Port {port} is accessible for basic operations")
         except serial.SerialException as e:
             self.logger.error(f"Cannot access port {port}: {e}")
             
@@ -128,7 +130,237 @@ class MeshtasticInterface:
             self.logger.error(f"Unexpected error accessing port {port}: {e}")
             return False
         
+        # Test exclusive lock availability (critical for Meshtastic library)
+        if not self._test_exclusive_lock(port):
+            return False
+        
         return True
+    
+    def _test_exclusive_lock(self, port: str) -> bool:
+        """
+        Test if exclusive lock can be obtained on the serial port
+        
+        Args:
+            port: Serial port path
+            
+        Returns:
+            True if exclusive lock is available, False otherwise
+        """
+        self.logger.debug("Testing exclusive lock availability")
+        
+        try:
+            # Open port with exclusive access (same as Meshtastic library does)
+            ser = serial.Serial()
+            ser.port = port
+            ser.baudrate = self.config.serial.baudrate
+            ser.timeout = 0.1
+            ser.exclusive = True  # This is the key parameter
+            
+            ser.open()
+            self.logger.debug(f"✓ Exclusive lock available on {port}")
+            ser.close()
+            return True
+            
+        except serial.SerialException as e:
+            error_msg = str(e).lower()
+            if "resource temporarily unavailable" in error_msg or "could not exclusively lock port" in error_msg:
+                self.logger.error(f"✗ Exclusive lock not available on {port}: {e}")
+                
+                # Identify what is holding the lock
+                lock_holders = self._identify_lock_holders(port)
+                if lock_holders:
+                    self.logger.error(f"Processes using {port}:")
+                    for holder in lock_holders:
+                        self.logger.error(f"  • {holder['command']} (PID: {holder['pid']}) - User: {holder.get('user', 'unknown')}")
+                    
+                    # Try to resolve conflicts if possible
+                    if self._should_resolve_conflicts():
+                        self.logger.info("Attempting to resolve port conflicts...")
+                        if self._resolve_port_conflicts(port, lock_holders):
+                            self.logger.info("Port conflicts resolved, retesting exclusive lock...")
+                            return self._test_exclusive_lock(port)  # Retry once
+                else:
+                    self.logger.error("Could not identify process holding the exclusive lock")
+                    self.logger.info("Manual steps to try:")
+                    self.logger.info(f"  • Check for processes: lsof {port}")
+                    self.logger.info(f"  • Remove stale locks: sudo rm /var/lock/LCK..{os.path.basename(port)}")
+                    self.logger.info("  • Stop ModemManager: sudo systemctl stop ModemManager")
+                
+                return False
+            else:
+                # Other serial errors
+                self.logger.error(f"Serial error during exclusive lock test: {e}")
+                return False
+                
+        except Exception as e:
+            self.logger.error(f"Unexpected error testing exclusive lock: {e}")
+            return False
+    
+    def _identify_lock_holders(self, port: str) -> List[Dict[str, str]]:
+        """
+        Identify processes that are using the serial port
+        
+        Args:
+            port: Serial port path
+            
+        Returns:
+            List of dictionaries with process information
+        """
+        processes = []
+        
+        try:
+            # Use lsof to find processes using the device
+            result = subprocess.run(
+                ["lsof", port],
+                capture_output=True,
+                text=True,
+                timeout=5
+            )
+            
+            if result.returncode == 0:
+                lines = result.stdout.strip().split('\n')[1:]  # Skip header
+                for line in lines:
+                    parts = line.split()
+                    if len(parts) >= 2:
+                        processes.append({
+                            "command": parts[0],
+                            "pid": parts[1],
+                            "user": parts[2] if len(parts) > 2 else "unknown",
+                            "full_line": line
+                        })
+            
+        except subprocess.TimeoutExpired:
+            self.logger.debug(f"lsof timeout for {port}")
+        except FileNotFoundError:
+            # lsof not available, try fuser
+            try:
+                result = subprocess.run(
+                    ["fuser", port],
+                    capture_output=True,
+                    text=True,
+                    timeout=5
+                )
+                
+                if result.returncode == 0:
+                    pids = result.stdout.strip().split()
+                    for pid in pids:
+                        if pid.isdigit():
+                            processes.append({
+                                "pid": pid,
+                                "command": f"PID {pid}",
+                                "user": "unknown"
+                            })
+                            
+            except Exception as e:
+                self.logger.debug(f"Error using fuser: {e}")
+        except Exception as e:
+            self.logger.debug(f"Error identifying lock holders for {port}: {e}")
+        
+        return processes
+    
+    def _should_resolve_conflicts(self) -> bool:
+        """
+        Determine if automatic conflict resolution should be attempted
+        
+        Returns:
+            True if conflicts should be resolved automatically
+        """
+        return self.config.serial.auto_resolve_conflicts
+    
+    def _resolve_port_conflicts(self, port: str, lock_holders: List[Dict[str, str]]) -> bool:
+        """
+        Attempt to resolve port conflicts by stopping interfering processes
+        
+        Args:
+            port: Serial port path
+            lock_holders: List of processes using the port
+            
+        Returns:
+            True if conflicts were resolved, False otherwise
+        """
+        resolved_any = False
+        port_basename = os.path.basename(port)
+        
+        for holder in lock_holders:
+            command = holder.get("command", "").lower()
+            pid = holder.get("pid", "")
+            
+            try:
+                # Handle ModemManager
+                if "modemmanager" in command and self.config.serial.stop_modemmanager:
+                    self.logger.info(f"Stopping ModemManager service (PID: {pid})")
+                    result = subprocess.run(
+                        ["sudo", "systemctl", "stop", "ModemManager"],
+                        capture_output=True,
+                        text=True,
+                        timeout=10
+                    )
+                    if result.returncode == 0:
+                        self.logger.info("✓ ModemManager stopped")
+                        resolved_any = True
+                    else:
+                        self.logger.warning(f"Failed to stop ModemManager: {result.stderr}")
+                
+                # Handle getty services
+                elif "getty" in command and self.config.serial.stop_getty_services:
+                    service_name = f"serial-getty@{port_basename}.service"
+                    self.logger.info(f"Disabling serial console service: {service_name}")
+                    result = subprocess.run(
+                        ["sudo", "systemctl", "stop", service_name],
+                        capture_output=True,
+                        text=True,
+                        timeout=10
+                    )
+                    if result.returncode == 0:
+                        self.logger.info(f"✓ {service_name} stopped")
+                        resolved_any = True
+                    else:
+                        self.logger.debug(f"Could not stop {service_name}: {result.stderr}")
+                
+                # Handle other BBMesh instances
+                elif "bbmesh" in command or "python" in command:
+                    if pid and pid.isdigit():
+                        # Check if this is our own process
+                        our_pid = str(os.getpid())
+                        if pid != our_pid:
+                            self.logger.info(f"Found another BBMesh/Python process using {port} (PID: {pid})")
+                            self.logger.warning("Another BBMesh instance may be running - manual intervention required")
+                            # Don't automatically kill other BBMesh instances for safety
+                
+                # Handle other processes with caution
+                else:
+                    if pid and pid.isdigit():
+                        self.logger.info(f"Found process {command} using {port} (PID: {pid})")
+                        self.logger.info("Manual intervention may be required to stop this process")
+                        
+            except subprocess.TimeoutExpired:
+                self.logger.warning(f"Timeout while trying to resolve conflict with {command}")
+            except Exception as e:
+                self.logger.debug(f"Error resolving conflict with {command}: {e}")
+        
+        # Clean up stale lock files
+        if self.config.serial.remove_stale_locks:
+            lock_file_paths = [
+                f"/var/lock/LCK..{port_basename}",
+                f"/tmp/LCK..{port_basename}",
+                f"/var/run/lock/LCK..{port_basename}"
+            ]
+            
+            for lock_file in lock_file_paths:
+                if os.path.exists(lock_file):
+                    try:
+                        self.logger.info(f"Removing stale lock file: {lock_file}")
+                        subprocess.run(["sudo", "rm", lock_file], check=True, timeout=5)
+                        self.logger.info(f"✓ Removed {lock_file}")
+                        resolved_any = True
+                    except Exception as e:
+                        self.logger.debug(f"Could not remove lock file {lock_file}: {e}")
+        
+        if resolved_any:
+            # Give the system a moment to release the port
+            time.sleep(1)
+        
+        return resolved_any
     
     def _attempt_connection(self, port: str, timeout: float, attempt_num: int) -> bool:
         """
