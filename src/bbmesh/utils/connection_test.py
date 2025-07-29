@@ -10,6 +10,8 @@ import time
 import glob
 import stat
 import grp
+import subprocess
+import re
 from typing import List, Dict, Any, Optional
 from pathlib import Path
 
@@ -44,6 +46,9 @@ class ConnectionTester:
             "system_info": self._get_system_info(),
             "available_ports": self._discover_serial_ports(),
             "permissions": self._check_permissions(),
+            "port_conflicts": self._check_port_conflicts(),
+            "system_services": self._check_system_services(),
+            "lock_files": self._check_lock_files(),
             "port_tests": self._test_all_ports(),
             "connection_test": None
         }
@@ -212,6 +217,267 @@ class ConnectionTester:
         
         return perm_info
     
+    def _check_port_conflicts(self) -> Dict[str, Any]:
+        """
+        Check for processes that might be using serial ports
+        
+        Returns:
+            Dictionary with conflict information
+        """
+        conflicts = {
+            "processes_using_ports": [],
+            "recommendations": []
+        }
+        
+        try:
+            # Check all available serial ports for conflicts
+            ports = self._discover_serial_ports()
+            
+            for port_info in ports:
+                device = port_info["device"]
+                processes = self._get_processes_using_port(device)
+                
+                if processes:
+                    conflicts["processes_using_ports"].append({
+                        "device": device,
+                        "processes": processes
+                    })
+                    
+                    # Add recommendations
+                    for proc in processes:
+                        if "getty" in proc.get("command", "").lower():
+                            conflicts["recommendations"].append(
+                                f"Disable serial console on {device}: "
+                                f"sudo systemctl disable serial-getty@{device.split('/')[-1]}.service"
+                            )
+                        elif "modemmanager" in proc.get("command", "").lower():
+                            conflicts["recommendations"].append(
+                                "Disable ModemManager: sudo systemctl disable ModemManager"
+                            )
+                        else:
+                            conflicts["recommendations"].append(
+                                f"Kill process {proc.get('pid', 'unknown')} using {device}: "
+                                f"sudo kill {proc.get('pid', 'unknown')}"
+                            )
+                            
+        except Exception as e:
+            conflicts["error"] = str(e)
+            self.logger.debug(f"Error checking port conflicts: {e}")
+        
+        return conflicts
+    
+    def _get_processes_using_port(self, device: str) -> List[Dict[str, Any]]:
+        """
+        Get list of processes using a specific serial port
+        
+        Args:
+            device: Serial device path (e.g., /dev/ttyUSB0)
+            
+        Returns:
+            List of process information dictionaries
+        """
+        processes = []
+        
+        try:
+            # Use lsof to find processes using the device
+            result = subprocess.run(
+                ["lsof", device],
+                capture_output=True,
+                text=True,
+                timeout=5
+            )
+            
+            if result.returncode == 0:
+                lines = result.stdout.strip().split('\n')[1:]  # Skip header
+                for line in lines:
+                    parts = line.split()
+                    if len(parts) >= 2:
+                        processes.append({
+                            "command": parts[0],
+                            "pid": parts[1],
+                            "user": parts[2] if len(parts) > 2 else "unknown",
+                            "full_line": line
+                        })
+            
+        except subprocess.TimeoutExpired:
+            self.logger.debug(f"lsof timeout for {device}")
+        except FileNotFoundError:
+            # lsof not available, try fuser
+            try:
+                result = subprocess.run(
+                    ["fuser", device],
+                    capture_output=True,
+                    text=True,
+                    timeout=5
+                )
+                
+                if result.returncode == 0:
+                    pids = result.stdout.strip().split()
+                    for pid in pids:
+                        if pid.isdigit():
+                            processes.append({
+                                "pid": pid,
+                                "command": f"PID {pid}",
+                                "user": "unknown"
+                            })
+                            
+            except Exception as e:
+                self.logger.debug(f"Error using fuser: {e}")
+        except Exception as e:
+            self.logger.debug(f"Error checking processes for {device}: {e}")
+        
+        return processes
+    
+    def _check_system_services(self) -> Dict[str, Any]:
+        """
+        Check for system services that might interfere with serial ports
+        
+        Returns:
+            Dictionary with service status information
+        """
+        services_info = {
+            "problematic_services": [],
+            "recommendations": []
+        }
+        
+        # Common services that can interfere with serial ports
+        problematic_services = [
+            "ModemManager",
+            "serial-getty@ttyUSB0.service",
+            "serial-getty@ttyACM0.service", 
+            "getty@ttyUSB0.service",
+            "getty@ttyACM0.service"
+        ]
+        
+        try:
+            for service in problematic_services:
+                status = self._get_service_status(service)
+                if status["active"]:
+                    services_info["problematic_services"].append({
+                        "service": service,
+                        "status": status
+                    })
+                    
+                    if "modemmanager" in service.lower():
+                        services_info["recommendations"].append(
+                            f"Disable {service}: sudo systemctl stop {service} && "
+                            f"sudo systemctl disable {service}"
+                        )
+                    elif "getty" in service.lower():
+                        services_info["recommendations"].append(
+                            f"Disable serial console {service}: sudo systemctl stop {service} && "
+                            f"sudo systemctl disable {service}"
+                        )
+                        
+        except Exception as e:
+            services_info["error"] = str(e)
+            self.logger.debug(f"Error checking system services: {e}")
+        
+        return services_info
+    
+    def _get_service_status(self, service_name: str) -> Dict[str, Any]:
+        """
+        Get systemd service status
+        
+        Args:
+            service_name: Name of the systemd service
+            
+        Returns:
+            Dictionary with service status information
+        """
+        status = {
+            "active": False,
+            "enabled": False,
+            "status": "unknown"
+        }
+        
+        try:
+            # Check if service is active
+            result = subprocess.run(
+                ["systemctl", "is-active", service_name],
+                capture_output=True,
+                text=True,
+                timeout=5
+            )
+            status["active"] = result.stdout.strip() == "active"
+            
+            # Check if service is enabled
+            result = subprocess.run(
+                ["systemctl", "is-enabled", service_name],
+                capture_output=True,
+                text=True,
+                timeout=5
+            )
+            status["enabled"] = result.stdout.strip() == "enabled"
+            status["status"] = result.stdout.strip()
+            
+        except subprocess.TimeoutExpired:
+            status["status"] = "timeout"
+        except FileNotFoundError:
+            status["status"] = "systemctl_not_found"
+        except Exception as e:
+            status["status"] = f"error: {e}"
+            self.logger.debug(f"Error checking service {service_name}: {e}")
+        
+        return status
+    
+    def _check_lock_files(self) -> Dict[str, Any]:
+        """
+        Check for stale lock files that might prevent port access
+        
+        Returns:
+            Dictionary with lock file information
+        """
+        lock_info = {
+            "lock_files_found": [],
+            "recommendations": []
+        }
+        
+        # Common lock file locations
+        lock_dirs = ["/var/lock", "/tmp", "/var/run/lock"]
+        
+        try:
+            for lock_dir in lock_dirs:
+                if not os.path.exists(lock_dir):
+                    continue
+                    
+                # Look for serial port lock files
+                lock_patterns = [
+                    "LCK..tty*",
+                    "LCK..USB*", 
+                    "LCK..ACM*",
+                    "*.lock"
+                ]
+                
+                for pattern in lock_patterns:
+                    lock_files = glob.glob(os.path.join(lock_dir, pattern))
+                    
+                    for lock_file in lock_files:
+                        try:
+                            stat_info = os.stat(lock_file)
+                            age = time.time() - stat_info.st_mtime
+                            
+                            lock_info["lock_files_found"].append({
+                                "path": lock_file,
+                                "age_seconds": age,
+                                "size": stat_info.st_size,
+                                "stale": age > 300  # Consider stale if older than 5 minutes
+                            })
+                            
+                            if age > 300:  # Stale lock file
+                                lock_info["recommendations"].append(
+                                    f"Remove stale lock file: sudo rm {lock_file}"
+                                )
+                                
+                        except Exception as e:
+                            self.logger.debug(f"Error checking lock file {lock_file}: {e}")
+                            
+        except Exception as e:
+            lock_info["error"] = str(e)
+            self.logger.debug(f"Error checking lock files: {e}")
+        
+        return lock_info
+    
     def _test_all_ports(self) -> List[Dict[str, Any]]:
         """
         Test basic serial communication on all discovered ports
@@ -282,7 +548,7 @@ class ConnectionTester:
     def _test_meshtastic_connection(self, port: str, 
                                    timeout: float = 15.0) -> Dict[str, Any]:
         """
-        Perform detailed Meshtastic connection test
+        Perform detailed Meshtastic connection test with advanced error handling
         
         Args:
             port: Serial port path
@@ -297,6 +563,8 @@ class ConnectionTester:
             "steps": [],
             "node_info": None,
             "error": None,
+            "error_type": None,
+            "suggested_fixes": [],
             "timing": {}
         }
         
@@ -370,9 +638,63 @@ class ConnectionTester:
             # Clean up
             interface.close()
             
+        except serial.SerialException as e:
+            result["error"] = f"Serial connection failed: {e}"
+            result["error_type"] = "serial_error"
+            result["steps"].append(f"✗ Serial Exception: {e}")
+            
+            # Provide specific fixes for common serial errors
+            error_msg = str(e).lower()
+            if "permission denied" in error_msg:
+                result["suggested_fixes"].extend([
+                    "Add user to dialout group: sudo usermod -a -G dialout $USER",
+                    "Logout and login again, or run: newgrp dialout",
+                    "Check port permissions: ls -la " + port
+                ])
+            elif "resource temporarily unavailable" in error_msg or "could not exclusively lock port" in error_msg:
+                result["suggested_fixes"].extend([
+                    "Stop ModemManager: sudo systemctl stop ModemManager",
+                    "Disable serial console: sudo systemctl disable serial-getty@" + os.path.basename(port) + ".service",
+                    "Check for processes using port: lsof " + port,
+                    "Remove stale lock files: sudo rm /var/lock/LCK.." + os.path.basename(port),
+                    "Try unplugging and reconnecting the device"
+                ])
+            elif "device or resource busy" in error_msg:
+                result["suggested_fixes"].extend([
+                    "Close other applications using the serial port",
+                    "Check for multiple instances: ps aux | grep meshtastic",
+                    "Restart the system if necessary"
+                ])
+            elif "no such file or directory" in error_msg:
+                result["suggested_fixes"].extend([
+                    "Check if device is connected: ls -la /dev/tty*",
+                    "Try different USB port",
+                    "Check USB cable (must support data, not just power)",
+                    "Install USB-to-serial drivers if needed"
+                ])
+                
+        except ImportError as e:
+            result["error"] = f"Missing dependency: {e}"
+            result["error_type"] = "dependency_error"
+            result["steps"].append(f"✗ Import Error: {e}")
+            result["suggested_fixes"].extend([
+                "Install meshtastic package: pip install meshtastic",
+                "Update package: pip install --upgrade meshtastic",
+                "Check Python environment is correct"
+            ])
+            
         except Exception as e:
             result["error"] = f"Connection test failed: {e}"
+            result["error_type"] = "unknown_error"
             result["steps"].append(f"✗ Exception: {e}")
+            
+            # Generic troubleshooting steps
+            result["suggested_fixes"].extend([
+                "Try restarting the Meshtastic device",
+                "Check device firmware is compatible",
+                "Try using official Meshtastic CLI: meshtastic --info",
+                "Check system logs: dmesg | tail -20"
+            ])
         
         result["timing"]["total"] = time.time() - start_time
         return result
@@ -421,6 +743,43 @@ class ConnectionTester:
             if port.get("access_error"):
                 print(f"      Error: {port['access_error']}")
         
+        # Port Conflicts
+        conflicts = results.get("port_conflicts", {})
+        if conflicts.get("processes_using_ports"):
+            print(f"\nPort Conflicts Detected:")
+            for conflict in conflicts["processes_using_ports"]:
+                print(f"  {conflict['device']}:")
+                for proc in conflict["processes"]:
+                    print(f"    • {proc.get('command', 'Unknown')} (PID: {proc.get('pid', 'Unknown')})")
+        
+        # System Services
+        services = results.get("system_services", {})
+        if services.get("problematic_services"):
+            print(f"\nProblematic System Services:")
+            for service_info in services["problematic_services"]:
+                service = service_info["service"]
+                status = service_info["status"]
+                print(f"  • {service} - Active: {status.get('active', False)}, Enabled: {status.get('enabled', False)}")
+        
+        # Lock Files
+        locks = results.get("lock_files", {})
+        if locks.get("lock_files_found"):
+            print(f"\nSerial Port Lock Files:")
+            for lock in locks["lock_files_found"]:
+                age_min = lock["age_seconds"] / 60
+                stale_status = " (STALE)" if lock["stale"] else ""
+                print(f"  • {lock['path']} - Age: {age_min:.1f}min{stale_status}")
+        
+        # Recommendations
+        all_recommendations = []
+        for section in [conflicts, services, locks]:
+            all_recommendations.extend(section.get("recommendations", []))
+        
+        if all_recommendations:
+            print(f"\nRecommended Actions:")
+            for i, rec in enumerate(all_recommendations, 1):
+                print(f"  {i}. {rec}")
+        
         # Port Tests
         tests = results["port_tests"]
         if tests:
@@ -459,6 +818,12 @@ class ConnectionTester:
             
             if conn_test.get("error"):
                 print(f"  Error: {conn_test['error']}")
+                
+                # Show suggested fixes for the specific error
+                if conn_test.get("suggested_fixes"):
+                    print(f"  Suggested Fixes:")
+                    for fix in conn_test["suggested_fixes"]:
+                        print(f"    • {fix}")
         
         print("\n" + "="*60)
 
