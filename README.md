@@ -69,7 +69,7 @@ BBMesh supports custom plugins for games, utilities, and integrations. See the [
 
 ## Contributing
 
-Contributions are welcome! Please read our [Contributing Guidelines](CONTRIBUTING.md) and [Code of Conduct](CODE_OF_CONDUCT.md).
+Contributions are welcome! Please read our [Contributing Guidelines](CONTRIBUTING.md) for information on how to get started.
 
 ## License
 

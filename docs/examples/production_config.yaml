@@ -1,0 +1,85 @@
+# Production Configuration for BBMesh
+# This configuration is optimized for stable production deployment
+
+# Meshtastic node configuration
+meshtastic:
+  # Serial port settings
+  serial:
+    port: "/dev/ttyUSB0"  # Update for your production system
+    baudrate: 115200
+    timeout: 1.0
+  
+  # Node identification (should be configured for your node)
+  node_id: null  # Auto-detect, or set specific node ID
+  
+  # Production channels - typically primary channels only
+  monitored_channels: [0, 1]  # Limit to essential channels
+  
+  # Response channels match monitored channels
+  response_channels: [0, 1]
+  
+  # More restrictive - only direct messages in production
+  direct_message_only: true
+
+# Production logging - balanced verbosity
+logging:
+  level: "INFO"  # Standard production logging
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  file_path: "/var/log/bbmesh/bbmesh.log"  # System log directory
+  max_file_size: "20MB"  # Larger files for production
+  backup_count: 10  # Keep more history
+  console_output: false  # No console output in production
+
+# Production server settings
+server:
+  name: "BBMesh BBS"  # Clean production name
+  welcome_message: "Welcome to BBMesh BBS! Your gateway to the mesh network."
+  motd_file: "config/motd.txt"
+  max_message_length: 200  # Conservative limit
+  session_timeout: 300  # 5 minute timeout
+  rate_limit_messages: 10  # Strict rate limiting
+  rate_limit_window: 60
+
+# Menu system settings
+menu:
+  menu_file: "config/menus.yaml"
+  timeout: 300  # Standard timeout
+  max_depth: 10  # Reasonable depth limit
+  prompt_suffix: " > "
+
+# Plugin configuration - stable plugins only
+plugins:
+  plugin_dir: "src/bbmesh/plugins"
+  plugin_config_file: "config/plugins.yaml"
+  enabled_plugins:
+    - "welcome"
+    - "help"
+    - "time"
+    - "ping"
+    - "calculator"
+    - "node_lookup"
+    # Only enable well-tested plugins in production
+  plugin_timeout: 30  # Standard timeout
+
+# Database configuration
+database:
+  type: "sqlite"
+  path: "/var/lib/bbmesh/bbmesh.db"  # System data directory
+  backup_interval: 3600  # Hourly backups
+
+# Production security and performance settings
+production:
+  # Security settings
+  strict_validation: true
+  log_all_messages: true
+  enable_monitoring: true
+  
+  # Performance settings
+  max_concurrent_sessions: 20
+  memory_limit_mb: 256
+  cpu_limit_percent: 50
+  
+  # Reliability settings
+  auto_restart: true
+  health_check_interval: 60
+  max_restart_attempts: 5

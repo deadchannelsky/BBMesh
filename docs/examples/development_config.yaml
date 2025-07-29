@@ -1,0 +1,81 @@
+# Development Configuration for BBMesh
+# This configuration is optimized for development and testing
+
+# Meshtastic node configuration
+meshtastic:
+  # Serial port settings - update for your system
+  serial:
+    port: "/dev/ttyUSB0"  # Linux: /dev/ttyUSB0, macOS: /dev/tty.usbserial-*, Windows: COM3
+    baudrate: 115200
+    timeout: 2.0  # Longer timeout for development
+  
+  # Node identification (auto-detected if null)
+  node_id: null
+  
+  # Monitor all primary channels for development
+  monitored_channels: [0, 1, 2, 3]
+  
+  # Can respond on all monitored channels
+  response_channels: [0, 1, 2, 3]
+  
+  # Allow both direct and broadcast responses for testing
+  direct_message_only: false
+
+# Development logging - verbose output
+logging:
+  level: "DEBUG"  # Maximum verbosity
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  file_path: "logs/bbmesh-dev.log"
+  max_file_size: "5MB"  # Smaller files for development
+  backup_count: 3
+  console_output: true  # Show logs in console
+
+# Server settings optimized for development
+server:
+  name: "BBMesh Dev BBS"
+  welcome_message: "Welcome to BBMesh Development BBS! This is a test environment."
+  motd_file: "config/motd.txt"
+  max_message_length: 200
+  session_timeout: 600  # Longer timeout for testing (10 minutes)
+  rate_limit_messages: 100  # Very relaxed rate limiting
+  rate_limit_window: 60
+
+# Menu system settings
+menu:
+  menu_file: "config/menus.yaml"
+  timeout: 600  # Long timeout for development
+  max_depth: 20  # Allow deep nesting for testing
+  prompt_suffix: " [DEV] > "  # Indicate development mode
+
+# Plugin configuration - enable all for testing
+plugins:
+  plugin_dir: "src/bbmesh/plugins"
+  plugin_config_file: "config/plugins.yaml"
+  enabled_plugins:
+    - "welcome"
+    - "help"
+    - "time" 
+    - "ping"
+    - "calculator"
+    - "number_guess"
+    - "node_lookup"
+    # Add example plugins if installed
+    - "echo"
+    - "quote"
+    - "dice"
+    - "flip"
+  plugin_timeout: 60  # Longer timeout for debugging
+
+# Database configuration
+database:
+  type: "sqlite"
+  path: "data/bbmesh-dev.db"
+  backup_interval: 1800  # 30 minutes
+
+# Development-specific settings
+development:
+  # Enable extra debugging features
+  mock_mode: false  # Set to true to use mock Meshtastic interface
+  test_users: ["dev_user", "test_user"]  # Test user identifiers
+  bypass_rate_limiting: true  # Disable rate limiting for development
+  verbose_errors: true  # Show detailed error messages
