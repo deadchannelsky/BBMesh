@@ -1,0 +1,16 @@
+README.md
+pyproject.toml
+src/bbmesh/__init__.py
+src/bbmesh/cli.py
+src/bbmesh.egg-info/PKG-INFO
+src/bbmesh.egg-info/SOURCES.txt
+src/bbmesh.egg-info/dependency_links.txt
+src/bbmesh.egg-info/entry_points.txt
+src/bbmesh.egg-info/requires.txt
+src/bbmesh.egg-info/top_level.txt
+src/bbmesh/core/__init__.py
+src/bbmesh/core/config.py
+src/bbmesh/menus/__init__.py
+src/bbmesh/plugins/__init__.py
+src/bbmesh/utils/__init__.py
+src/bbmesh/utils/logger.py

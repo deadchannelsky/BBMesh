@@ -1,0 +1,2 @@
+[console_scripts]
+bbmesh = bbmesh.cli:main
