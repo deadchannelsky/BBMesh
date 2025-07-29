@@ -4,6 +4,7 @@ Meshtastic interface for BBMesh
 
 import time
 import threading
+import os
 from typing import Optional, Callable, Dict, Any, List
 from dataclasses import dataclass
 from datetime import datetime
@@ -12,6 +13,7 @@ import meshtastic
 import meshtastic.serial_interface
 from meshtastic import BROADCAST_ADDR
 from pubsub import pub
+import serial
 
 from .config import MeshtasticConfig
 from ..utils.logger import BBMeshLogger
@@ -47,47 +49,237 @@ class MeshtasticInterface:
         self.message_callbacks: List[Callable[[MeshMessage], None]] = []
         self._stop_event = threading.Event()
         
-    def connect(self) -> bool:
+    def connect(self, max_retries: int = 3) -> bool:
         """
-        Connect to the Meshtastic node
+        Connect to the Meshtastic node with enhanced diagnostics and retry logic
         
+        Args:
+            max_retries: Maximum number of connection attempts
+            
         Returns:
             True if connection successful, False otherwise
         """
-        try:
-            self.logger.info(f"Connecting to Meshtastic node on {self.config.serial.port}")
+        port = self.config.serial.port
+        self.logger.info(f"Starting connection to Meshtastic node on {port}")
+        
+        # Pre-connection diagnostics
+        if not self._pre_connection_checks(port):
+            return False
+        
+        # Progressive timeouts for each retry
+        timeouts = [5, 10, 15]  # seconds
+        retry_delays = [1, 2, 3]  # seconds between retries
+        
+        for attempt in range(max_retries):
+            timeout = timeouts[min(attempt, len(timeouts) - 1)]
             
-            # Create serial interface
-            self.interface = meshtastic.serial_interface.SerialInterface(
-                devPath=self.config.serial.port,
-                debugOut=None  # Disable debug output
+            self.logger.info(f"Connection attempt {attempt + 1}/{max_retries} (timeout: {timeout}s)")
+            
+            if self._attempt_connection(port, timeout, attempt + 1):
+                self.logger.info(f"Successfully connected on attempt {attempt + 1}")
+                return True
+            
+            # Wait before next retry (except on last attempt)
+            if attempt < max_retries - 1:
+                delay = retry_delays[min(attempt, len(retry_delays) - 1)]
+                self.logger.info(f"Waiting {delay}s before retry...")
+                time.sleep(delay)
+        
+        self.logger.error(f"Failed to connect after {max_retries} attempts")
+        return False
+    
+    def _pre_connection_checks(self, port: str) -> bool:
+        """
+        Perform pre-connection diagnostic checks
+        
+        Args:
+            port: Serial port path
+            
+        Returns:
+            True if checks pass, False otherwise
+        """
+        self.logger.debug("Running pre-connection diagnostic checks")
+        
+        # Check if port exists
+        if not os.path.exists(port):
+            self.logger.error(f"Serial port {port} does not exist")
+            self.logger.info("Available ports might include: /dev/ttyUSB*, /dev/ttyACM*, /dev/tty.usbserial*")
+            return False
+        
+        self.logger.debug(f"✓ Port {port} exists")
+        
+        # Check port accessibility
+        try:
+            with serial.Serial(port, self.config.serial.baudrate, timeout=0.1) as ser:
+                self.logger.debug(f"✓ Port {port} is accessible")
+        except serial.SerialException as e:
+            self.logger.error(f"Cannot access port {port}: {e}")
+            
+            # Provide helpful error context
+            if "Permission denied" in str(e):
+                self.logger.error("Permission denied - user may need to be added to dialout group")
+                self.logger.info("Try: sudo usermod -a -G dialout $USER && newgrp dialout")
+            elif "Device or resource busy" in str(e):
+                self.logger.error("Port is busy - another process may be using it")
+                self.logger.info("Check if another BBMesh instance or Meshtastic client is running")
+            
+            return False
+        except Exception as e:
+            self.logger.error(f"Unexpected error accessing port {port}: {e}")
+            return False
+        
+        return True
+    
+    def _attempt_connection(self, port: str, timeout: float, attempt_num: int) -> bool:
+        """
+        Attempt a single connection to the Meshtastic device
+        
+        Args:
+            port: Serial port path
+            timeout: Connection timeout in seconds
+            attempt_num: Current attempt number for logging
+            
+        Returns:
+            True if connection successful, False otherwise
+        """
+        interface = None
+        start_time = time.time()
+        
+        try:
+            # Step 1: Create serial interface
+            self.logger.debug(f"Attempt {attempt_num}: Creating serial interface")
+            step_start = time.time()
+            
+            interface = meshtastic.serial_interface.SerialInterface(
+                devPath=port,
+                debugOut=None  # Disable debug output to reduce noise
             )
             
-            # Wait for connection and node info
-            timeout = 10  # seconds
-            start_time = time.time()
+            interface_time = time.time() - step_start
+            self.logger.debug(f"Attempt {attempt_num}: Interface created in {interface_time:.2f}s")
             
-            while not self.interface.myInfo and (time.time() - start_time) < timeout:
-                time.sleep(0.1)
+            # Step 2: Wait for node information with detailed progress
+            self.logger.debug(f"Attempt {attempt_num}: Waiting for node info (timeout: {timeout}s)")
+            info_start = time.time()
             
-            if not self.interface.myInfo:
-                self.logger.error("Failed to get node information within timeout")
+            poll_interval = 0.1
+            last_log_time = info_start
+            log_interval = 2.0  # Log progress every 2 seconds
+            
+            while not interface.myInfo and (time.time() - info_start) < timeout:
+                time.sleep(poll_interval)
+                
+                # Log progress periodically
+                current_time = time.time()
+                if current_time - last_log_time >= log_interval:
+                    elapsed = current_time - info_start
+                    self.logger.debug(f"Attempt {attempt_num}: Still waiting for node info ({elapsed:.1f}s elapsed)")
+                    last_log_time = current_time
+            
+            info_time = time.time() - info_start
+            
+            # Step 3: Check if we got node information
+            if not interface.myInfo:
+                self.logger.warning(f"Attempt {attempt_num}: Timeout after {info_time:.2f}s waiting for node info")
+                
+                # Log interface state for debugging
+                self.logger.debug(f"Attempt {attempt_num}: Interface state - nodes: {hasattr(interface, 'nodes')}, "
+                                f"channels: {hasattr(interface, 'channels')}")
+                
+                # Try to get any available information
+                if hasattr(interface, 'nodes') and interface.nodes:
+                    self.logger.debug(f"Attempt {attempt_num}: Found {len(interface.nodes)} nodes in mesh")
+                
+                interface.close()
                 return False
             
+            # Step 4: Process successful connection
+            self.logger.debug(f"Attempt {attempt_num}: Received node info in {info_time:.2f}s")
+            
             # Store node information
-            self.node_info = self.interface.myInfo
+            self.node_info = dict(interface.myInfo)  # Make a copy
             self.local_node_id = str(self.node_info.get('num', 'unknown'))
+            
+            # Log node details
+            user_info = self.node_info.get('user', {})
+            node_name = user_info.get('longName', 'Unknown')
+            short_name = user_info.get('shortName', 'Unknown')
+            
+            self.logger.info(f"Connected to node {self.local_node_id} ({node_name}/{short_name})")
             
             # Subscribe to message reception
             pub.subscribe(self._on_receive, "meshtastic.receive")
             
+            # Store interface and mark as connected
+            self.interface = interface
             self.connected = True
-            self.logger.info(f"Connected to node {self.local_node_id}")
+            
+            total_time = time.time() - start_time
+            self.logger.info(f"Connection established in {total_time:.2f}s")
+            
+            # Log additional mesh information if available
+            self._log_mesh_status()
+            
             return True
             
+        except serial.SerialException as e:
+            self.logger.error(f"Attempt {attempt_num}: Serial communication error: {e}")
+            
+            # Provide context for common serial errors
+            if "Permission denied" in str(e):
+                self.logger.error("Serial permission error - check user permissions")
+            elif "No such file or directory" in str(e):
+                self.logger.error("Serial port not found - device may be disconnected")
+            elif "Device or resource busy" in str(e):
+                self.logger.error("Serial port busy - close other applications using the port")
+                
+        except ImportError as e:
+            self.logger.error(f"Attempt {attempt_num}: Missing dependency: {e}")
+            self.logger.error("Make sure 'meshtastic' Python package is installed")
+            
         except Exception as e:
-            self.logger.error(f"Failed to connect to Meshtastic node: {e}")
-            return False
+            self.logger.error(f"Attempt {attempt_num}: Unexpected error: {type(e).__name__}: {e}")
+            
+            # Log additional context for debugging
+            self.logger.debug(f"Attempt {attempt_num}: Error occurred after {time.time() - start_time:.2f}s")
+            
+        finally:
+            # Clean up interface if connection failed
+            if interface and not self.connected:
+                try:
+                    interface.close()
+                except Exception as e:
+                    self.logger.debug(f"Error closing interface: {e}")
+        
+        return False
+    
+    def _log_mesh_status(self) -> None:
+        """Log current mesh network status information"""
+        try:
+            if not self.interface:
+                return
+            
+            # Log node count
+            if hasattr(self.interface, 'nodes') and self.interface.nodes:
+                node_count = len(self.interface.nodes)
+                self.logger.info(f"Mesh network has {node_count} known nodes")
+                
+                # Log some node details in debug mode
+                for node_id, node_info in list(self.interface.nodes.items())[:5]:  # First 5 nodes
+                    user = node_info.get('user', {})
+                    name = user.get('shortName', user.get('longName', 'Unknown'))
+                    self.logger.debug(f"  Node {node_id}: {name}")
+                
+                if node_count > 5:
+                    self.logger.debug(f"  ... and {node_count - 5} more nodes")
+            
+            # Log channel information
+            if hasattr(self.interface, 'channels') and self.interface.channels:
+                channel_count = len(self.interface.channels)
+                self.logger.info(f"Device has {channel_count} configured channels")
+                
+        except Exception as e:
+            self.logger.debug(f"Error logging mesh status: {e}")
     
     def disconnect(self) -> None:
         """Disconnect from the Meshtastic node"""
