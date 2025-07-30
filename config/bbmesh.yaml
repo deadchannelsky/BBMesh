@@ -39,6 +39,7 @@ server:
   session_timeout: 300     # Session timeout in seconds
   rate_limit_messages: 10  # Max messages per window
   rate_limit_window: 60    # Rate limit window in seconds
+  message_send_delay: 1.0  # Minimum seconds between outgoing messages
 
 # Menu system configuration
 menu:

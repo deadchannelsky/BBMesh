@@ -25,7 +25,7 @@ class BBMeshServer:
         self.running = False
         
         # Initialize components
-        self.mesh_interface = MeshtasticInterface(config.meshtastic)
+        self.mesh_interface = MeshtasticInterface(config.meshtastic, config.server.message_send_delay)
         self.message_handler = MessageHandler(config, self.mesh_interface)
         
         # Setup signal handlers for graceful shutdown

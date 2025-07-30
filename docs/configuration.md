@@ -97,6 +97,7 @@ server:
   session_timeout: 300
   rate_limit_messages: 10
   rate_limit_window: 60
+  message_send_delay: 1.0
 ```
 
 #### Server Settings Explained
@@ -107,6 +108,22 @@ server:
 - **session_timeout**: User session timeout in seconds
 - **rate_limit_messages**: Max messages per user per window
 - **rate_limit_window**: Rate limiting window in seconds
+- **message_send_delay**: Minimum seconds between outgoing messages (prevents message loss/reordering)
+
+#### Message Send Delay
+
+The `message_send_delay` setting prevents rapid-fire message sending that can cause issues in mesh networks:
+
+- **Purpose**: Ensures messages are sent with proper spacing to prevent ordering issues and message loss
+- **Default**: 1.0 seconds (recommended for most deployments) 
+- **Range**: 0.1 to 5.0 seconds
+- **Tuning Guidelines**:
+  - **Fast/reliable networks**: 0.5 seconds
+  - **Standard mesh networks**: 1.0-1.5 seconds  
+  - **Congested/slow networks**: 2.0-3.0 seconds
+  - **Test environments**: 0.1 seconds (minimal delay)
+
+**Note**: Lower values provide faster responses but may cause message delivery issues. Higher values ensure reliability but slow down interactions.
 
 ### Menu Configuration
 

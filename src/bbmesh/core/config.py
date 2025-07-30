@@ -51,6 +51,7 @@ class ServerConfig:
     session_timeout: int = 300  # seconds
     rate_limit_messages: int = 10
     rate_limit_window: int = 60  # seconds
+    message_send_delay: float = 1.0  # seconds
 
 
 @dataclass
@@ -171,6 +172,7 @@ class Config:
                 "session_timeout": self.server.session_timeout,
                 "rate_limit_messages": self.server.rate_limit_messages,
                 "rate_limit_window": self.server.rate_limit_window,
+                "message_send_delay": self.server.message_send_delay,
             },
             "menu": {
                 "menu_file": self.menu.menu_file,

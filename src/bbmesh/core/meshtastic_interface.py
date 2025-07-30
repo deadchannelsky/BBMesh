@@ -41,8 +41,9 @@ class MeshtasticInterface:
     Interface to Meshtastic node via serial connection
     """
     
-    def __init__(self, config: MeshtasticConfig):
+    def __init__(self, config: MeshtasticConfig, message_send_delay: float = 1.0):
         self.config = config
+        self.message_send_delay = message_send_delay
         self.logger = BBMeshLogger(__name__)
         self.interface: Optional[meshtastic.serial_interface.SerialInterface] = None
         self.node_info: Dict[str, Any] = {}
@@ -51,6 +52,7 @@ class MeshtasticInterface:
         self.message_callbacks: List[Callable[[MeshMessage], None]] = []
         self._stop_event = threading.Event()
         self._connection_lock = threading.Lock()  # Prevent concurrent connection attempts
+        self._last_message_time: float = 0.0  # Track last message send time for delay enforcement
         
     def connect(self, max_retries: int = 3) -> bool:
         """
@@ -761,6 +763,15 @@ class MeshtasticInterface:
             self.logger.info(f"📤 Interface state: connected={self.connected}, interface={self.interface is not None}")
             self.logger.info(f"📤 Local node ID: {self.local_node_id}")
             
+            # Enforce message send delay to prevent rapid-fire sending
+            current_time = time.time()
+            time_since_last = current_time - self._last_message_time
+            
+            if time_since_last < self.message_send_delay:
+                delay_needed = self.message_send_delay - time_since_last
+                self.logger.info(f"⏱️ Applying message send delay: {delay_needed:.2f}s (configured: {self.message_send_delay}s)")
+                time.sleep(delay_needed)
+            
             # Truncate message if too long
             max_length = 200  # Meshtastic text message limit
             if len(text) > max_length:
@@ -788,6 +799,9 @@ class MeshtasticInterface:
                 )
                 self.logger.info(f"✅ BROADCAST message sent successfully")
                 self.logger.log_message("TX", "BROADCAST", channel, text, self.local_node_id)
+            
+            # Update last message time after successful send
+            self._last_message_time = time.time()
             
             self.logger.info(f"✅ Message sending completed successfully")
             return True
