@@ -496,13 +496,15 @@ class MeshtasticInterface:
                 self.logger.error("❌ myInfo is None or empty - this is the problem!")
                 self.node_info = {'num': None, 'user': {}}
             
-            # Store local node ID as string, handling None values properly
-            node_num = self.node_info.get('num')
-            if node_num is not None:
-                self.local_node_id = str(node_num)
-                self.logger.debug(f"Successfully extracted local node ID from myInfo: {self.local_node_id}")
+            # Store local node ID as string, extracting the proper user.id format (e.g., "!a0cbf888")
+            user_info = self.node_info.get('user', {})
+            user_id = user_info.get('id') if isinstance(user_info, dict) else getattr(user_info, 'id', None)
+            
+            if user_id is not None:
+                self.local_node_id = user_id
+                self.logger.info(f"✅ Successfully extracted local node ID from myInfo.user.id: {self.local_node_id}")
             else:
-                self.logger.error("❌ Node number is None from myInfo - trying fallback methods")
+                self.logger.error("❌ User ID is None from myInfo.user.id - trying fallback methods")
                 self.logger.info("=== STARTING FALLBACK NODE ID DETECTION ===")
                 self.local_node_id = self._find_local_node_id_fallback(interface)
                 
@@ -511,11 +513,13 @@ class MeshtasticInterface:
                     if self.config.node_id:
                         self.logger.info(f"🔧 Using manually configured node_id: {self.config.node_id}")
                         self.local_node_id = str(self.config.node_id)
-                        self.node_info['num'] = int(self.config.node_id)
+                        # Ensure it has the ! prefix if it's not already there
+                        if not self.local_node_id.startswith('!'):
+                            self.local_node_id = f"!{self.local_node_id}"
                     else:
                         self.logger.error("💥 CRITICAL: Could not determine local node ID using any method!")
                         self.logger.error("💥 Direct message detection will not work correctly")
-                        self.logger.error("💥 Try manually setting node_id in bbmesh.yaml (e.g., node_id: 2697721992)")
+                        self.logger.error("💥 Try manually setting node_id in bbmesh.yaml (e.g., node_id: '!a0cbf888')")
                         self.logger.error("💥 Or wait for a direct message to auto-learn the node ID")
                 else:
                     self.logger.info(f"✅ SUCCESS: Found local node ID using fallback method: {self.local_node_id}")
@@ -619,27 +623,36 @@ class MeshtasticInterface:
         self.logger.info(f"Interface attributes: {[attr for attr in dir(interface) if not attr.startswith('_')]}")
         
         try:
-            # Method 1: Check if there's a nodeNum property directly on interface
-            self.logger.info("🔍 Method 1: Checking interface.nodeNum")
-            if hasattr(interface, 'nodeNum'):
-                node_id = getattr(interface, 'nodeNum')
-                self.logger.info(f"Found interface.nodeNum: {node_id} (type: {type(node_id)})")
-                if node_id is not None:
-                    self.logger.info(f"✅ Fallback method 1 SUCCESS: Found nodeNum on interface: {node_id}")
-                    return str(node_id)
+            # Method 1: Check if there's a myInfo property with user.id
+            self.logger.info("🔍 Method 1: Checking interface.myInfo.user.id")
+            if hasattr(interface, 'myInfo') and interface.myInfo:
+                my_info = getattr(interface, 'myInfo')
+                if hasattr(my_info, 'user'):
+                    user = getattr(my_info, 'user')
+                    if hasattr(user, 'id'):
+                        user_id = getattr(user, 'id')
+                        if user_id is not None:
+                            self.logger.info(f"✅ Fallback method 1 SUCCESS: Found myInfo.user.id: {user_id}")
+                            return user_id
+                        else:
+                            self.logger.info("❌ myInfo.user.id is None")
+                    else:
+                        self.logger.info("❌ myInfo.user has no id attribute")
                 else:
-                    self.logger.info("❌ interface.nodeNum is None")
+                    self.logger.info("❌ myInfo has no user attribute")
             else:
-                self.logger.info("❌ interface.nodeNum attribute not found")
+                self.logger.info("❌ interface.myInfo not found or empty")
             
-            # Method 2: Check if there's a localNode property
+            # Method 2: Check if there's a localNode property with user.id
             if hasattr(interface, 'localNode'):
                 local_node = getattr(interface, 'localNode')
-                if local_node and hasattr(local_node, 'num'):
-                    node_id = getattr(local_node, 'num')
-                    if node_id is not None:
-                        self.logger.debug(f"Fallback method 2: Found localNode.num: {node_id}")
-                        return str(node_id)
+                if local_node and hasattr(local_node, 'user'):
+                    user = getattr(local_node, 'user')
+                    if hasattr(user, 'id'):
+                        user_id = getattr(user, 'id')
+                        if user_id is not None:
+                            self.logger.debug(f"Fallback method 2: Found localNode.user.id: {user_id}")
+                            return user_id
             
             # Method 3: Look through nodes dictionary for the local node
             # The local node often has special properties or is marked differently
@@ -893,11 +906,17 @@ class MeshtasticInterface:
                     if to_id_int and to_id_int != 4294967295 and to_id_int != -1:
                         self.logger.info(f"🎯 LEARNING NODE ID: Message addressed to {to_id_int} - this IS our local node ID!")
                         
-                        # Set the local node ID (thread-safe update)
+                        # Set the local node ID (thread-safe update) - convert to proper !-prefixed format
                         with self._connection_lock:  # Ensure thread-safe update
                             old_local_node_id = self.local_node_id
-                            self.local_node_id = str(to_id_int)
+                            # Convert numeric node ID to proper Meshtastic format (!hexvalue)
+                            hex_node_id = f"!{to_id_int:08x}"
+                            self.local_node_id = hex_node_id
                             self.node_info['num'] = to_id_int
+                            # Also store the user info with proper ID
+                            if 'user' not in self.node_info:
+                                self.node_info['user'] = {}
+                            self.node_info['user']['id'] = hex_node_id
                             
                             self.logger.info(f"✅ AUTO-LEARNED local node ID: {old_local_node_id} -> {self.local_node_id}")
                             self.logger.info(f"✅ Updated node_info: {self.node_info}")
@@ -925,8 +944,14 @@ class MeshtasticInterface:
             
             if self.local_node_id is not None:
                 try:
-                    # Handle both string and integer node IDs
-                    local_id_int = int(self.local_node_id)
+                    # Extract numeric part from !-prefixed local node ID for comparison
+                    if self.local_node_id.startswith('!'):
+                        local_id_hex = self.local_node_id[1:]  # Remove the !
+                        local_id_int = int(local_id_hex, 16)   # Convert hex to int
+                    else:
+                        # Fallback: try to parse as integer directly
+                        local_id_int = int(self.local_node_id)
+                    
                     to_id_int = int(to_id) if to_id is not None else None
                     
                     # Check for broadcast addresses - handle multiple formats
@@ -942,7 +967,7 @@ class MeshtasticInterface:
                         self.logger.debug(f"DM Detection - Message is broadcast (to_id={to_id}, to_id_int={to_id_int})")
                     else:
                         is_direct = to_id_int == local_id_int
-                        self.logger.debug(f"DM Detection - Comparing: to_id_int={to_id_int} == local_id_int={local_id_int} -> is_direct={is_direct}")
+                        self.logger.debug(f"DM Detection - Comparing: to_id_int={to_id_int} == local_id_int={local_id_int} (from {self.local_node_id}) -> is_direct={is_direct}")
                     
                 except (ValueError, TypeError) as e:
                     self.logger.debug(f"Error comparing node IDs for direct message detection: {e}")

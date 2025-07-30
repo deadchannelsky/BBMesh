@@ -856,23 +856,27 @@ class ConnectionTester:
             while not interface.myInfo and (time.time() - start_time) < timeout:
                 time.sleep(0.1)
             
-            # Extract node ID if available
+            # Extract node ID if available (looking for user.id format like "!a0cbf888")
             if interface.myInfo:
                 try:
                     # Try dictionary conversion first
                     node_info = dict(interface.myInfo)
-                    node_id = node_info.get('num')
+                    user_info = node_info.get('user', {})
+                    node_id = user_info.get('id')
                 except (TypeError, AttributeError):
                     # Fall back to attribute access
-                    node_id = getattr(interface.myInfo, 'num', None)
+                    user_info = getattr(interface.myInfo, 'user', None)
+                    if user_info:
+                        node_id = getattr(user_info, 'id', None)
+                    else:
+                        node_id = None
                 
                 if node_id is not None:
-                    result = str(node_id)
-                    self.logger.debug(f"Successfully extracted node ID: {result}")
+                    self.logger.debug(f"Successfully extracted node ID: {node_id}")
                     interface.close()
-                    return result
+                    return node_id
                 else:
-                    self.logger.debug("Node info available but no node ID found")
+                    self.logger.debug("Node info available but no user.id found")
             else:
                 self.logger.debug(f"Timeout after {timeout}s waiting for node info")
             
