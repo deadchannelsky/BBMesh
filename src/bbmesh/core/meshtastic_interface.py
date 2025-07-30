@@ -471,6 +471,9 @@ class MeshtasticInterface:
             # Log additional mesh information if available
             self._log_mesh_status()
             
+            # Validate configuration for direct message only mode
+            self._validate_direct_message_config()
+            
             return True
             
         except serial.SerialException as e:
@@ -531,6 +534,25 @@ class MeshtasticInterface:
                 
         except Exception as e:
             self.logger.debug(f"Error logging mesh status: {e}")
+    
+    def _validate_direct_message_config(self) -> None:
+        """Validate configuration for direct message functionality"""
+        try:
+            if self.config.direct_message_only:
+                if self.local_node_id is None:
+                    self.logger.error("CONFIGURATION ERROR: direct_message_only=true but local_node_id is None!")
+                    self.logger.error("Direct messages cannot be detected. Consider setting direct_message_only=false")
+                else:
+                    self.logger.info(f"Direct message only mode enabled - Local node ID: {self.local_node_id}")
+                    self.logger.info("Will ONLY process direct messages sent to this node")
+                    
+                # Log BROADCAST_ADDR for debugging
+                self.logger.debug(f"BROADCAST_ADDR constant value: {BROADCAST_ADDR} (type: {type(BROADCAST_ADDR)})")
+            else:
+                self.logger.info(f"Processing both direct messages and broadcasts on channels: {self.config.monitored_channels}")
+                
+        except Exception as e:
+            self.logger.error(f"Error validating direct message configuration: {e}")
     
     def disconnect(self) -> None:
         """Disconnect from the Meshtastic node"""
@@ -680,18 +702,54 @@ class MeshtasticInterface:
             # Determine if this is a direct message
             # Handle case where local_node_id might be None
             is_direct = False
-            if self.local_node_id is not None and to_id != BROADCAST_ADDR:
+            
+            # Debug logging for direct message detection
+            self.logger.debug(f"DM Detection - to_id: {to_id} (type: {type(to_id)}), "
+                            f"from_id: {from_id}, local_node_id: {self.local_node_id} (type: {type(self.local_node_id)}), "
+                            f"BROADCAST_ADDR: {BROADCAST_ADDR} (type: {type(BROADCAST_ADDR)})")
+            
+            if self.local_node_id is not None:
                 try:
-                    is_direct = to_id == int(self.local_node_id)
+                    # Handle both string and integer node IDs
+                    local_id_int = int(self.local_node_id)
+                    to_id_int = int(to_id) if to_id is not None else None
+                    
+                    # Check for broadcast addresses - handle multiple formats
+                    is_broadcast = (
+                        to_id == BROADCAST_ADDR or  # String format "^all"
+                        to_id_int == 4294967295 or  # Standard broadcast address
+                        to_id_int == -1 or          # Signed broadcast address
+                        to_id == "^all"             # Explicit string check
+                    )
+                    
+                    if is_broadcast:
+                        is_direct = False
+                        self.logger.debug(f"DM Detection - Message is broadcast (to_id={to_id}, to_id_int={to_id_int})")
+                    else:
+                        is_direct = to_id_int == local_id_int
+                        self.logger.debug(f"DM Detection - Comparing: to_id_int={to_id_int} == local_id_int={local_id_int} -> is_direct={is_direct}")
+                    
                 except (ValueError, TypeError) as e:
                     self.logger.debug(f"Error comparing node IDs for direct message detection: {e}")
+                    self.logger.debug(f"Failed conversion - to_id: {to_id}, local_node_id: {self.local_node_id}")
                     is_direct = False
+            else:
+                self.logger.debug("DM Detection - local_node_id is None, cannot detect direct messages")
+                is_direct = False
             
             # Get sender name
             sender_name = self._get_node_name(from_id)
             
             # Filter messages based on configuration
-            if not self._should_process_message(channel, is_direct):
+            should_process = self._should_process_message(channel, is_direct)
+            self.logger.debug(f"Message filtering - channel: {channel}, is_direct: {is_direct}, "
+                            f"direct_message_only: {self.config.direct_message_only}, "
+                            f"monitored_channels: {self.config.monitored_channels}, "
+                            f"should_process: {should_process}")
+            
+            if not should_process:
+                self.logger.debug(f"Message REJECTED - From: {sender_name}({from_id}), "
+                                f"Channel: {channel}, Direct: {is_direct}, Text: '{text}'")
                 return
             
             # Create message object
@@ -753,16 +811,24 @@ class MeshtasticInterface:
         Returns:
             True if message should be processed
         """
-        # Always process direct messages if not in direct-only mode
+        # Always process direct messages
         if is_direct:
+            self.logger.debug(f"Processing direct message (is_direct=True)")
             return True
             
         # If direct message only mode, ignore broadcasts
         if self.config.direct_message_only:
+            self.logger.debug(f"Rejecting broadcast message - direct_message_only mode enabled")
             return False
             
         # Check if channel is monitored
-        return channel in self.config.monitored_channels
+        is_monitored = channel in self.config.monitored_channels
+        if is_monitored:
+            self.logger.debug(f"Processing broadcast message on monitored channel {channel}")
+        else:
+            self.logger.debug(f"Rejecting message on unmonitored channel {channel}")
+        
+        return is_monitored
     
     def get_mesh_info(self) -> Dict[str, Any]:
         """
