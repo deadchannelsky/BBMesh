@@ -64,9 +64,17 @@ class MeshtasticInterface:
         """
         # Prevent concurrent connection attempts
         with self._connection_lock:
+            # Add stack trace to identify what's calling connect() during operation
+            import traceback
+            stack_trace = traceback.format_stack()
+            self.logger.info(f"🔌 CONNECT() CALLED - Stack trace:")
+            for line in stack_trace[-5:]:  # Show last 5 stack frames
+                self.logger.info(f"🔌   {line.strip()}")
+            
             # Check if already connected
             if self.connected and self.interface:
-                self.logger.warning("Connect called but already connected - ignoring spurious connection attempt")
+                self.logger.error("💥 SPURIOUS CONNECTION ATTEMPT - already connected!")
+                self.logger.error("💥 This should NOT happen - investigating caller")
                 return True
             
             if self.connected:
@@ -749,32 +757,47 @@ class MeshtasticInterface:
             return False
         
         try:
+            self.logger.info(f"📤 SENDING MESSAGE: text='{text}', channel={channel}, destination={destination}")
+            self.logger.info(f"📤 Interface state: connected={self.connected}, interface={self.interface is not None}")
+            self.logger.info(f"📤 Local node ID: {self.local_node_id}")
+            
             # Truncate message if too long
             max_length = 200  # Meshtastic text message limit
             if len(text) > max_length:
+                original_length = len(text)
                 text = text[:max_length-3] + "..."
+                self.logger.info(f"📤 Truncated message from {original_length} to {len(text)} chars")
             
             # Send message
             if destination:
                 # Direct message to specific node
+                self.logger.info(f"📤 Sending DIRECT message to {destination} on channel {channel}")
                 self.interface.sendText(
                     text=text,
                     destinationId=destination,
                     channelIndex=channel
                 )
+                self.logger.info(f"✅ DIRECT message sent successfully")
                 self.logger.log_message("TX", destination, channel, text, self.local_node_id)
             else:
                 # Broadcast message
+                self.logger.info(f"📤 Sending BROADCAST message on channel {channel}")
                 self.interface.sendText(
                     text=text,
                     channelIndex=channel
                 )
+                self.logger.info(f"✅ BROADCAST message sent successfully")
                 self.logger.log_message("TX", "BROADCAST", channel, text, self.local_node_id)
             
+            self.logger.info(f"✅ Message sending completed successfully")
             return True
             
         except Exception as e:
-            self.logger.error(f"Failed to send message: {e}")
+            self.logger.error(f"💥 CRITICAL: Failed to send message: {e}")
+            import traceback
+            self.logger.error(f"💥 Send message traceback: {traceback.format_exc()}")
+            self.logger.error(f"💥 This error must NOT trigger reconnection!")
+            # Ensure this error doesn't corrupt connection state
             return False
     
     def get_node_info(self, node_id: str) -> Optional[Dict[str, Any]]:
@@ -847,18 +870,35 @@ class MeshtasticInterface:
             rssi = packet.get('rxRssi', -999)
             
             # Learn local node ID from direct messages if we don't have it yet
+            self.logger.debug(f"🔍 AUTO-LEARNING CHECK: local_node_id={self.local_node_id}, to_id={to_id}, BROADCAST_ADDR={BROADCAST_ADDR}")
             if self.local_node_id is None and to_id != BROADCAST_ADDR and str(to_id) != "^all":
                 # If we receive a message with a specific to_id, that might be our local node ID
                 try:
                     to_id_int = int(to_id) if to_id is not None else None
+                    self.logger.info(f"🔍 Checking to_id_int: {to_id_int}")
                     if to_id_int and to_id_int != 4294967295 and to_id_int != -1:
-                        self.logger.info(f"🎯 LEARNING NODE ID: Message addressed to {to_id_int} - this might be our local node ID")
-                        self.local_node_id = str(to_id_int)
-                        self.logger.info(f"✅ AUTO-LEARNED local node ID: {self.local_node_id}")
-                        # Update node_info as well
-                        self.node_info['num'] = to_id_int
+                        self.logger.info(f"🎯 LEARNING NODE ID: Message addressed to {to_id_int} - this IS our local node ID!")
+                        
+                        # Set the local node ID (thread-safe update)
+                        with self._connection_lock:  # Ensure thread-safe update
+                            old_local_node_id = self.local_node_id
+                            self.local_node_id = str(to_id_int)
+                            self.node_info['num'] = to_id_int
+                            
+                            self.logger.info(f"✅ AUTO-LEARNED local node ID: {old_local_node_id} -> {self.local_node_id}")
+                            self.logger.info(f"✅ Updated node_info: {self.node_info}")
+                            
+                            # This is critical - we now know our node ID and can process messages correctly
+                            self.logger.info(f"🎉 DIRECT MESSAGE DETECTION NOW ENABLED!")
+                    else:
+                        self.logger.debug(f"to_id_int {to_id_int} is broadcast or invalid, not learning from it")
                 except (ValueError, TypeError) as e:
                     self.logger.debug(f"Could not learn node ID from to_id {to_id}: {e}")
+            else:
+                if self.local_node_id is not None:
+                    self.logger.debug(f"Already have local_node_id: {self.local_node_id}")
+                else:
+                    self.logger.debug(f"to_id {to_id} is broadcast, not learning from it")
             
             # Determine if this is a direct message
             # Handle case where local_node_id might be None
@@ -933,17 +973,25 @@ class MeshtasticInterface:
                                   f"[{msg_type}] {text}", self.local_node_id)
             
             # Call message callbacks
-            for callback in self.message_callbacks:
+            self.logger.info(f"📞 CALLING MESSAGE CALLBACKS - {len(self.message_callbacks)} callbacks registered")
+            for i, callback in enumerate(self.message_callbacks):
                 try:
-                    self.logger.debug(f"Calling message callback: {callback.__name__ if hasattr(callback, '__name__') else str(callback)}")
+                    callback_name = callback.__name__ if hasattr(callback, '__name__') else str(callback)
+                    self.logger.info(f"📞 Callback {i+1}/{len(self.message_callbacks)}: {callback_name}")
+                    self.logger.info(f"📞 About to call callback with message: from={message.sender_id}, to={message.to_node}, text='{message.text}', is_direct={message.is_direct}")
+                    
+                    # Call the callback
                     callback(message)
-                    self.logger.debug(f"Message callback completed successfully")
+                    
+                    self.logger.info(f"✅ Callback {i+1} completed successfully")
                 except Exception as e:
-                    self.logger.error(f"CRITICAL: Error in message callback {callback}: {e}")
+                    self.logger.error(f"💥 CRITICAL: Error in message callback {i+1} ({callback}): {e}")
                     import traceback
-                    self.logger.error(f"Callback traceback: {traceback.format_exc()}")
+                    self.logger.error(f"💥 Callback traceback: {traceback.format_exc()}")
                     # Do not let callback exceptions affect interface state
                     continue
+            
+            self.logger.info(f"✅ All message callbacks completed")
                     
         except Exception as e:
             self.logger.error(f"CRITICAL: Error processing received message: {e}")
