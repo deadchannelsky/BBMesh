@@ -428,8 +428,12 @@ class MeshtasticInterface:
             # Step 4: Process successful connection
             self.logger.debug(f"Attempt {attempt_num}: Received node info in {info_time:.2f}s")
             
-            # Store node information
-            self.node_info = dict(interface.myInfo)  # Make a copy
+            # Store node information - extract fields individually to handle MyNodeInfo object
+            # In Meshtastic >=2.0.0, myInfo is a MyNodeInfo object that doesn't support dict() conversion
+            self.node_info = {
+                'num': interface.myInfo.get('num') if interface.myInfo else None,
+                'user': interface.myInfo.get('user', {}) if interface.myInfo else {}
+            }
             self.local_node_id = str(self.node_info.get('num', 'unknown'))
             
             # Log node details
