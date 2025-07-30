@@ -443,7 +443,13 @@ class MeshtasticInterface:
             else:
                 self.node_info = {'num': None, 'user': {}}
             
-            self.local_node_id = str(self.node_info.get('num', 'unknown'))
+            # Store local node ID as string, handling None values properly
+            node_num = self.node_info.get('num')
+            if node_num is not None:
+                self.local_node_id = str(node_num)
+            else:
+                self.local_node_id = None
+                self.logger.warning("Node number is None - direct message detection may not work correctly")
             
             # Log node details
             user_info = self.node_info.get('user', {})
@@ -672,7 +678,14 @@ class MeshtasticInterface:
             rssi = packet.get('rxRssi', -999)
             
             # Determine if this is a direct message
-            is_direct = to_id != BROADCAST_ADDR and to_id == int(self.local_node_id)
+            # Handle case where local_node_id might be None
+            is_direct = False
+            if self.local_node_id is not None and to_id != BROADCAST_ADDR:
+                try:
+                    is_direct = to_id == int(self.local_node_id)
+                except (ValueError, TypeError) as e:
+                    self.logger.debug(f"Error comparing node IDs for direct message detection: {e}")
+                    is_direct = False
             
             # Get sender name
             sender_name = self._get_node_name(from_id)
