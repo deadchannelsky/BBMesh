@@ -430,26 +430,52 @@ class MeshtasticInterface:
             
             # Store node information - handle different myInfo object types across Meshtastic versions
             # myInfo can be a dict-like object, an object with attributes, or a protobuf message
+            self.logger.debug(f"myInfo analysis - type: {type(interface.myInfo)}, value: {interface.myInfo}")
+            
             if interface.myInfo:
+                # Enhanced debugging of myInfo structure
+                self.logger.debug(f"myInfo attributes: {dir(interface.myInfo)}")
+                if hasattr(interface.myInfo, '__dict__'):
+                    self.logger.debug(f"myInfo.__dict__: {interface.myInfo.__dict__}")
+                
                 try:
                     # Try dictionary conversion first (works with older versions)
                     self.node_info = dict(interface.myInfo)
-                except (TypeError, AttributeError):
+                    self.logger.debug(f"Successfully converted myInfo to dict: {self.node_info}")
+                except (TypeError, AttributeError) as e:
+                    self.logger.debug(f"Dict conversion failed: {e}")
                     # Fall back to attribute access for newer versions
                     self.node_info = {
                         'num': getattr(interface.myInfo, 'num', None),
                         'user': getattr(interface.myInfo, 'user', {})
                     }
+                    self.logger.debug(f"Attribute access result: {self.node_info}")
+                    
+                    # Try additional attribute names that might contain the node ID
+                    for attr_name in ['node_num', 'id', 'node_id', 'nodeNum', 'nodeId']:
+                        if hasattr(interface.myInfo, attr_name):
+                            attr_value = getattr(interface.myInfo, attr_name)
+                            self.logger.debug(f"Found alternative node ID attribute '{attr_name}': {attr_value}")
+                            if attr_value is not None and self.node_info.get('num') is None:
+                                self.node_info['num'] = attr_value
             else:
+                self.logger.debug("myInfo is None or empty")
                 self.node_info = {'num': None, 'user': {}}
             
             # Store local node ID as string, handling None values properly
             node_num = self.node_info.get('num')
             if node_num is not None:
                 self.local_node_id = str(node_num)
+                self.logger.debug(f"Successfully extracted local node ID from myInfo: {self.local_node_id}")
             else:
-                self.local_node_id = None
-                self.logger.warning("Node number is None - direct message detection may not work correctly")
+                self.logger.warning("Node number is None from myInfo - trying fallback methods")
+                self.local_node_id = self._find_local_node_id_fallback(interface)
+                
+                if self.local_node_id is None:
+                    self.logger.error("CRITICAL: Could not determine local node ID using any method!")
+                    self.logger.error("Direct message detection will not work correctly")
+                else:
+                    self.logger.info(f"Successfully found local node ID using fallback method: {self.local_node_id}")
             
             # Log node details
             user_info = self.node_info.get('user', {})
@@ -534,6 +560,78 @@ class MeshtasticInterface:
                 
         except Exception as e:
             self.logger.debug(f"Error logging mesh status: {e}")
+    
+    def _find_local_node_id_fallback(self, interface) -> Optional[str]:
+        """
+        Try alternative methods to find the local node ID when myInfo fails
+        
+        Args:
+            interface: Meshtastic interface object
+            
+        Returns:
+            Local node ID as string, or None if not found
+        """
+        self.logger.debug("Attempting fallback methods to find local node ID")
+        
+        try:
+            # Method 1: Check if there's a nodeNum property directly on interface
+            if hasattr(interface, 'nodeNum'):
+                node_id = getattr(interface, 'nodeNum')
+                if node_id is not None:
+                    self.logger.debug(f"Fallback method 1: Found nodeNum on interface: {node_id}")
+                    return str(node_id)
+            
+            # Method 2: Check if there's a localNode property
+            if hasattr(interface, 'localNode'):
+                local_node = getattr(interface, 'localNode')
+                if local_node and hasattr(local_node, 'num'):
+                    node_id = getattr(local_node, 'num')
+                    if node_id is not None:
+                        self.logger.debug(f"Fallback method 2: Found localNode.num: {node_id}")
+                        return str(node_id)
+            
+            # Method 3: Look through nodes dictionary for the local node
+            # The local node often has special properties or is marked differently
+            if hasattr(interface, 'nodes') and interface.nodes:
+                self.logger.debug(f"Fallback method 3: Searching through {len(interface.nodes)} nodes")
+                
+                for node_id, node_info in interface.nodes.items():
+                    self.logger.debug(f"  Checking node {node_id}: {node_info}")
+                    
+                    # Look for indicators that this is the local node
+                    if isinstance(node_info, dict):
+                        # Check for 'isLocal' flag or similar
+                        if node_info.get('isLocal') or node_info.get('is_local'):
+                            self.logger.debug(f"Fallback method 3: Found local node by isLocal flag: {node_id}")
+                            return str(node_id)
+                        
+                        # Check if this node has the same position/telemetry as we're receiving
+                        # (This is more complex but could work in some cases)
+                        user_info = node_info.get('user', {})
+                        if user_info.get('isLicensed') == True or user_info.get('role') == 'ROUTER':
+                            # These might indicate it's our node, but this is speculative
+                            pass
+            
+            # Method 4: Try to extract from interface properties/methods
+            interface_attrs = dir(interface)
+            self.logger.debug(f"Interface attributes: {[attr for attr in interface_attrs if 'node' in attr.lower() or 'id' in attr.lower()]}")
+            
+            for attr_name in ['myNodeInfo', 'my_node_info', 'localNodeNum', 'local_node_num']:
+                if hasattr(interface, attr_name):
+                    attr_value = getattr(interface, attr_name)
+                    self.logger.debug(f"Fallback method 4: Found {attr_name}: {attr_value}")
+                    if attr_value and hasattr(attr_value, 'num'):
+                        node_id = getattr(attr_value, 'num')
+                        if node_id is not None:
+                            self.logger.debug(f"Fallback method 4: Extracted node ID: {node_id}")
+                            return str(node_id)
+            
+            self.logger.debug("All fallback methods failed to find local node ID")
+            return None
+            
+        except Exception as e:
+            self.logger.error(f"Error in fallback node ID detection: {e}")
+            return None
     
     def _validate_direct_message_config(self) -> None:
         """Validate configuration for direct message functionality"""
