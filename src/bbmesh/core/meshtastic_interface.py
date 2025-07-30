@@ -442,36 +442,48 @@ class MeshtasticInterface:
             
             # Store node information - handle different myInfo object types across Meshtastic versions
             # myInfo can be a dict-like object, an object with attributes, or a protobuf message
-            self.logger.debug(f"myInfo analysis - type: {type(interface.myInfo)}, value: {interface.myInfo}")
+            self.logger.info(f"=== ANALYZING myInfo STRUCTURE ===")
+            self.logger.info(f"myInfo type: {type(interface.myInfo)}")
+            self.logger.info(f"myInfo value: {interface.myInfo}")
+            self.logger.info(f"myInfo is None: {interface.myInfo is None}")
+            self.logger.info(f"myInfo is empty: {not bool(interface.myInfo) if interface.myInfo is not None else 'N/A'}")
             
             if interface.myInfo:
                 # Enhanced debugging of myInfo structure
-                self.logger.debug(f"myInfo attributes: {dir(interface.myInfo)}")
+                self.logger.info(f"myInfo attributes: {dir(interface.myInfo)}")
                 if hasattr(interface.myInfo, '__dict__'):
-                    self.logger.debug(f"myInfo.__dict__: {interface.myInfo.__dict__}")
+                    self.logger.info(f"myInfo.__dict__: {interface.myInfo.__dict__}")
+                
+                # Try to access every possible attribute that might contain node info
+                potential_attrs = ['num', 'node_num', 'id', 'node_id', 'nodeNum', 'nodeId', 'my_node_num', 'local_node_num']
+                for attr in potential_attrs:
+                    if hasattr(interface.myInfo, attr):
+                        attr_value = getattr(interface.myInfo, attr)
+                        self.logger.info(f"myInfo.{attr}: {attr_value} (type: {type(attr_value)})")
                 
                 try:
                     # Try dictionary conversion first (works with older versions)
                     self.node_info = dict(interface.myInfo)
-                    self.logger.debug(f"Successfully converted myInfo to dict: {self.node_info}")
+                    self.logger.info(f"✅ Successfully converted myInfo to dict: {self.node_info}")
                 except (TypeError, AttributeError) as e:
-                    self.logger.debug(f"Dict conversion failed: {e}")
+                    self.logger.info(f"❌ Dict conversion failed: {e}")
                     # Fall back to attribute access for newer versions
                     self.node_info = {
                         'num': getattr(interface.myInfo, 'num', None),
                         'user': getattr(interface.myInfo, 'user', {})
                     }
-                    self.logger.debug(f"Attribute access result: {self.node_info}")
+                    self.logger.info(f"Attribute access result: {self.node_info}")
                     
                     # Try additional attribute names that might contain the node ID
                     for attr_name in ['node_num', 'id', 'node_id', 'nodeNum', 'nodeId']:
                         if hasattr(interface.myInfo, attr_name):
                             attr_value = getattr(interface.myInfo, attr_name)
-                            self.logger.debug(f"Found alternative node ID attribute '{attr_name}': {attr_value}")
+                            self.logger.info(f"Found alternative node ID attribute '{attr_name}': {attr_value}")
                             if attr_value is not None and self.node_info.get('num') is None:
                                 self.node_info['num'] = attr_value
+                                self.logger.info(f"✅ Using {attr_name} as node ID: {attr_value}")
             else:
-                self.logger.debug("myInfo is None or empty")
+                self.logger.error("❌ myInfo is None or empty - this is the problem!")
                 self.node_info = {'num': None, 'user': {}}
             
             # Store local node ID as string, handling None values properly
@@ -480,14 +492,23 @@ class MeshtasticInterface:
                 self.local_node_id = str(node_num)
                 self.logger.debug(f"Successfully extracted local node ID from myInfo: {self.local_node_id}")
             else:
-                self.logger.warning("Node number is None from myInfo - trying fallback methods")
+                self.logger.error("❌ Node number is None from myInfo - trying fallback methods")
+                self.logger.info("=== STARTING FALLBACK NODE ID DETECTION ===")
                 self.local_node_id = self._find_local_node_id_fallback(interface)
                 
                 if self.local_node_id is None:
-                    self.logger.error("CRITICAL: Could not determine local node ID using any method!")
-                    self.logger.error("Direct message detection will not work correctly")
+                    # Try manual configuration as last resort
+                    if self.config.node_id:
+                        self.logger.info(f"🔧 Using manually configured node_id: {self.config.node_id}")
+                        self.local_node_id = str(self.config.node_id)
+                        self.node_info['num'] = int(self.config.node_id)
+                    else:
+                        self.logger.error("💥 CRITICAL: Could not determine local node ID using any method!")
+                        self.logger.error("💥 Direct message detection will not work correctly")
+                        self.logger.error("💥 Try manually setting node_id in bbmesh.yaml (e.g., node_id: 2697721992)")
+                        self.logger.error("💥 Or wait for a direct message to auto-learn the node ID")
                 else:
-                    self.logger.info(f"Successfully found local node ID using fallback method: {self.local_node_id}")
+                    self.logger.info(f"✅ SUCCESS: Found local node ID using fallback method: {self.local_node_id}")
             
             # Log node details
             user_info = self.node_info.get('user', {})
@@ -583,15 +604,23 @@ class MeshtasticInterface:
         Returns:
             Local node ID as string, or None if not found
         """
-        self.logger.debug("Attempting fallback methods to find local node ID")
+        self.logger.info("🔍 === FALLBACK NODE ID DETECTION METHODS ===")
+        self.logger.info(f"Interface type: {type(interface)}")
+        self.logger.info(f"Interface attributes: {[attr for attr in dir(interface) if not attr.startswith('_')]}")
         
         try:
             # Method 1: Check if there's a nodeNum property directly on interface
+            self.logger.info("🔍 Method 1: Checking interface.nodeNum")
             if hasattr(interface, 'nodeNum'):
                 node_id = getattr(interface, 'nodeNum')
+                self.logger.info(f"Found interface.nodeNum: {node_id} (type: {type(node_id)})")
                 if node_id is not None:
-                    self.logger.debug(f"Fallback method 1: Found nodeNum on interface: {node_id}")
+                    self.logger.info(f"✅ Fallback method 1 SUCCESS: Found nodeNum on interface: {node_id}")
                     return str(node_id)
+                else:
+                    self.logger.info("❌ interface.nodeNum is None")
+            else:
+                self.logger.info("❌ interface.nodeNum attribute not found")
             
             # Method 2: Check if there's a localNode property
             if hasattr(interface, 'localNode'):
@@ -816,6 +845,20 @@ class MeshtasticInterface:
             # Get signal quality information
             snr = packet.get('rxSnr', 0.0)
             rssi = packet.get('rxRssi', -999)
+            
+            # Learn local node ID from direct messages if we don't have it yet
+            if self.local_node_id is None and to_id != BROADCAST_ADDR and str(to_id) != "^all":
+                # If we receive a message with a specific to_id, that might be our local node ID
+                try:
+                    to_id_int = int(to_id) if to_id is not None else None
+                    if to_id_int and to_id_int != 4294967295 and to_id_int != -1:
+                        self.logger.info(f"🎯 LEARNING NODE ID: Message addressed to {to_id_int} - this might be our local node ID")
+                        self.local_node_id = str(to_id_int)
+                        self.logger.info(f"✅ AUTO-LEARNED local node ID: {self.local_node_id}")
+                        # Update node_info as well
+                        self.node_info['num'] = to_id_int
+                except (ValueError, TypeError) as e:
+                    self.logger.debug(f"Could not learn node ID from to_id {to_id}: {e}")
             
             # Determine if this is a direct message
             # Handle case where local_node_id might be None
