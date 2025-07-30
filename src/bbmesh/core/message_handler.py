@@ -315,9 +315,15 @@ class MessageHandler:
             response_text: Text to send
         """
         try:
-            # Use direct message for direct messages, same channel for broadcasts
-            destination = message.sender_id if message.is_direct else None
-            channel = message.channel
+            # Determine destination and channel based on message type
+            if message.is_direct:
+                # For direct messages, always respond back as direct message to sender
+                destination = message.sender_id
+                channel = 0  # Direct messages use channel 0
+            else:
+                # For broadcast messages, respond on the same channel
+                destination = None  # Broadcast response
+                channel = message.channel
             
             # Check if channel is allowed for responses
             if channel not in self.config.meshtastic.response_channels:

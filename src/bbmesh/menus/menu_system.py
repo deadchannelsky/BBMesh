@@ -66,7 +66,7 @@ class Menu:
         lines.append("")
         lines.append("Send option number or name")
         
-        return "\\n".join(lines)
+        return "\n".join(lines)
 
 
 class MenuSystem:
