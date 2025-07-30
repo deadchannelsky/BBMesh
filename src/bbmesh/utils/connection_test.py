@@ -827,6 +827,62 @@ class ConnectionTester:
         
         print("\n" + "="*60)
 
+    def get_node_id_only(self, timeout: float = 10.0) -> Optional[str]:
+        """
+        Get only the node ID from the connected Meshtastic device
+        
+        Args:
+            timeout: Connection timeout in seconds
+            
+        Returns:
+            Node ID as string if successful, None if failed
+        """
+        port = self.config.meshtastic.serial.port
+        self.logger.debug(f"Attempting to get node ID from {port}")
+        
+        # Quick pre-connection check
+        if not os.path.exists(port):
+            self.logger.debug(f"Port {port} does not exist")
+            return None
+        
+        try:
+            # Create Meshtastic interface with minimal setup
+            interface = meshtastic.serial_interface.SerialInterface(
+                devPath=port, debugOut=None
+            )
+            
+            # Wait for node information
+            start_time = time.time()
+            while not interface.myInfo and (time.time() - start_time) < timeout:
+                time.sleep(0.1)
+            
+            # Extract node ID if available
+            if interface.myInfo:
+                try:
+                    # Try dictionary conversion first
+                    node_info = dict(interface.myInfo)
+                    node_id = node_info.get('num')
+                except (TypeError, AttributeError):
+                    # Fall back to attribute access
+                    node_id = getattr(interface.myInfo, 'num', None)
+                
+                if node_id is not None:
+                    result = str(node_id)
+                    self.logger.debug(f"Successfully extracted node ID: {result}")
+                    interface.close()
+                    return result
+                else:
+                    self.logger.debug("Node info available but no node ID found")
+            else:
+                self.logger.debug(f"Timeout after {timeout}s waiting for node info")
+            
+            interface.close()
+            return None
+            
+        except Exception as e:
+            self.logger.debug(f"Error getting node ID: {e}")
+            return None
+
 
 def main():
     """CLI entry point for connection testing"""

@@ -153,5 +153,81 @@ def test_connection(config: Path, port: str, timeout: float, debug: bool):
         sys.exit(1)
 
 
+@main.command("nodeid")
+@click.option(
+    "--config",
+    "-c",
+    type=click.Path(exists=True, path_type=Path),
+    default="config/bbmesh.yaml",
+    help="Configuration file path",
+)
+@click.option(
+    "--port",
+    "-p",
+    help="Specific port to test (overrides config setting)"
+)
+@click.option(
+    "--timeout",
+    "-t",
+    type=float,
+    default=10.0,
+    help="Connection timeout in seconds"
+)
+@click.option(
+    "--debug",
+    "-d",
+    is_flag=True,
+    help="Enable debug output"
+)
+def nodeid(config: Path, port: str, timeout: float, debug: bool):
+    """Get the connected Meshtastic radio's node ID"""
+    try:
+        # Load configuration file or use defaults
+        cfg = None
+        if config.exists():
+            try:
+                cfg = Config.load(config)
+            except Exception as e:
+                if debug:
+                    click.echo(f"Warning: Could not load config: {e}")
+                cfg = Config.create_default()
+        else:
+            if debug:
+                click.echo(f"Config file {config} not found, using defaults")
+            cfg = Config.create_default()
+        
+        # Override port from command line if specified
+        if port:
+            cfg.meshtastic.serial.port = port
+        
+        # Configure logging based on debug flag
+        if debug:
+            cfg.logging.level = "DEBUG"
+        setup_logging(cfg.logging, debug)
+        
+        # Connect to Meshtastic device and retrieve node ID
+        tester = ConnectionTester(cfg)
+        node_id = tester.get_node_id_only(timeout)
+        
+        if node_id:
+            click.echo(node_id)
+            sys.exit(0)
+        else:
+            if debug:
+                click.echo("Failed to retrieve node ID", err=True)
+            sys.exit(1)
+            
+    except KeyboardInterrupt:
+        if debug:
+            click.echo("\nOperation interrupted by user")
+        sys.exit(1)
+    except Exception as e:
+        if debug:
+            click.echo(f"Error getting node ID: {e}", err=True)
+            import traceback
+            traceback.print_exc()
+        sys.exit(1)
+
+
 if __name__ == "__main__":
     main()
