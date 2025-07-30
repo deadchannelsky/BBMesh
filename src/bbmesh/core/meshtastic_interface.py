@@ -50,6 +50,7 @@ class MeshtasticInterface:
         self.connected = False
         self.message_callbacks: List[Callable[[MeshMessage], None]] = []
         self._stop_event = threading.Event()
+        self._connection_lock = threading.Lock()  # Prevent concurrent connection attempts
         
     def connect(self, max_retries: int = 3) -> bool:
         """
@@ -61,34 +62,45 @@ class MeshtasticInterface:
         Returns:
             True if connection successful, False otherwise
         """
-        port = self.config.serial.port
-        self.logger.info(f"Starting connection to Meshtastic node on {port}")
-        
-        # Pre-connection diagnostics
-        if not self._pre_connection_checks(port):
-            return False
-        
-        # Progressive timeouts for each retry
-        timeouts = [5, 10, 15]  # seconds
-        retry_delays = [1, 2, 3]  # seconds between retries
-        
-        for attempt in range(max_retries):
-            timeout = timeouts[min(attempt, len(timeouts) - 1)]
-            
-            self.logger.info(f"Connection attempt {attempt + 1}/{max_retries} (timeout: {timeout}s)")
-            
-            if self._attempt_connection(port, timeout, attempt + 1):
-                self.logger.info(f"Successfully connected on attempt {attempt + 1}")
+        # Prevent concurrent connection attempts
+        with self._connection_lock:
+            # Check if already connected
+            if self.connected and self.interface:
+                self.logger.warning("Connect called but already connected - ignoring spurious connection attempt")
                 return True
             
-            # Wait before next retry (except on last attempt)
-            if attempt < max_retries - 1:
-                delay = retry_delays[min(attempt, len(retry_delays) - 1)]
-                self.logger.info(f"Waiting {delay}s before retry...")
-                time.sleep(delay)
-        
-        self.logger.error(f"Failed to connect after {max_retries} attempts")
-        return False
+            if self.connected:
+                self.logger.warning("Connection state inconsistent - marked connected but no interface")
+                self.connected = False
+            
+            port = self.config.serial.port
+            self.logger.info(f"Starting connection to Meshtastic node on {port}")
+            
+            # Pre-connection diagnostics
+            if not self._pre_connection_checks(port):
+                return False
+            
+            # Progressive timeouts for each retry
+            timeouts = [5, 10, 15]  # seconds
+            retry_delays = [1, 2, 3]  # seconds between retries
+            
+            for attempt in range(max_retries):
+                timeout = timeouts[min(attempt, len(timeouts) - 1)]
+                
+                self.logger.info(f"Connection attempt {attempt + 1}/{max_retries} (timeout: {timeout}s)")
+                
+                if self._attempt_connection(port, timeout, attempt + 1):
+                    self.logger.info(f"Successfully connected on attempt {attempt + 1}")
+                    return True
+                
+                # Wait before next retry (except on last attempt)
+                if attempt < max_retries - 1:
+                    delay = retry_delays[min(attempt, len(retry_delays) - 1)]
+                    self.logger.info(f"Waiting {delay}s before retry...")
+                    time.sleep(delay)
+            
+            self.logger.error(f"Failed to connect after {max_retries} attempts")
+            return False
     
     def _pre_connection_checks(self, port: str) -> bool:
         """
@@ -654,14 +666,22 @@ class MeshtasticInterface:
     
     def disconnect(self) -> None:
         """Disconnect from the Meshtastic node"""
-        if self.interface:
-            try:
-                pub.unsubscribe(self._on_receive, "meshtastic.receive")
-                self.interface.close()
-                self.connected = False
-                self.logger.info("Disconnected from Meshtastic node")
-            except Exception as e:
-                self.logger.error(f"Error disconnecting: {e}")
+        with self._connection_lock:
+            if self.interface:
+                try:
+                    self.logger.info("Disconnecting from Meshtastic node...")
+                    pub.unsubscribe(self._on_receive, "meshtastic.receive")
+                    self.interface.close()
+                    self.connected = False
+                    self.interface = None
+                    self.logger.info("Successfully disconnected from Meshtastic node")
+                except Exception as e:
+                    self.logger.error(f"Error during disconnect: {e}")
+                    # Force cleanup even if disconnect fails
+                    self.connected = False
+                    self.interface = None
+            else:
+                self.logger.debug("Disconnect called but no interface - already disconnected")
     
     def add_message_callback(self, callback: Callable[[MeshMessage], None]) -> None:
         """
@@ -696,7 +716,7 @@ class MeshtasticInterface:
             True if message sent successfully, False otherwise
         """
         if not self.connected or not self.interface:
-            self.logger.error("Not connected to Meshtastic node")
+            self.logger.error("Cannot send message - not connected to Meshtastic node")
             return False
         
         try:
@@ -872,12 +892,22 @@ class MeshtasticInterface:
             # Call message callbacks
             for callback in self.message_callbacks:
                 try:
+                    self.logger.debug(f"Calling message callback: {callback.__name__ if hasattr(callback, '__name__') else str(callback)}")
                     callback(message)
+                    self.logger.debug(f"Message callback completed successfully")
                 except Exception as e:
-                    self.logger.error(f"Error in message callback: {e}")
+                    self.logger.error(f"CRITICAL: Error in message callback {callback}: {e}")
+                    import traceback
+                    self.logger.error(f"Callback traceback: {traceback.format_exc()}")
+                    # Do not let callback exceptions affect interface state
+                    continue
                     
         except Exception as e:
-            self.logger.error(f"Error processing received message: {e}")
+            self.logger.error(f"CRITICAL: Error processing received message: {e}")
+            import traceback
+            self.logger.error(f"Message processing traceback: {traceback.format_exc()}")
+            # Do not let message processing exceptions affect interface state
+            self.logger.error("Message processing failed but interface remains connected")
     
     def _get_node_name(self, node_id: str) -> str:
         """
