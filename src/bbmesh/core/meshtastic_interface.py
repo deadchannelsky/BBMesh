@@ -41,9 +41,10 @@ class MeshtasticInterface:
     Interface to Meshtastic node via serial connection
     """
     
-    def __init__(self, config: MeshtasticConfig, message_send_delay: float = 1.0):
+    def __init__(self, config: MeshtasticConfig, message_send_delay: float = 1.0, max_message_length: int = 200):
         self.config = config
         self.message_send_delay = message_send_delay
+        self.max_message_length = max_message_length
         self.logger = BBMeshLogger(__name__)
         self.interface: Optional[meshtastic.serial_interface.SerialInterface] = None
         self.node_info: Dict[str, Any] = {}
@@ -754,10 +755,194 @@ class MeshtasticInterface:
         if callback in self.message_callbacks:
             self.message_callbacks.remove(callback)
     
+    def _split_message(self, text: str) -> List[str]:
+        """
+        Split a long message into multiple parts that fit within the configured limit.
+        
+        Args:
+            text: The message text to split
+            
+        Returns:
+            List of message parts, each within the configured length limit
+        """
+        if len(text) <= self.max_message_length:
+            return [text]
+        
+        parts = []
+        remaining = text
+        part_num = 1
+        
+        # Reserve space for part indicators like " (1/N)"
+        part_indicator_space = 8  # " (XX/XX)" takes up to 8 characters
+        effective_limit = self.max_message_length - part_indicator_space
+        
+        # First pass: split text into parts without indicators
+        temp_parts = []
+        while remaining:
+            if len(remaining) <= effective_limit:
+                temp_parts.append(remaining)
+                break
+            
+            # Find the best place to split (prefer word boundaries)
+            split_point = effective_limit
+            
+            # Look for word boundary within last 50 characters
+            word_boundary_start = max(0, effective_limit - 50)
+            last_space = remaining.rfind(' ', word_boundary_start, effective_limit)
+            
+            if last_space > word_boundary_start:
+                split_point = last_space
+            
+            # Split the message
+            temp_parts.append(remaining[:split_point])
+            remaining = remaining[split_point:]
+            
+            # Only remove leading space if we split at a space boundary
+            if remaining.startswith(' '):
+                remaining = remaining[1:]
+        
+        # Second pass: add part indicators
+        total_parts = len(temp_parts)
+        
+        if total_parts == 1:
+            # No splitting needed after all
+            return temp_parts
+        
+        for i, part in enumerate(temp_parts, 1):
+            indicator = f" ({i}/{total_parts})"
+            # Ensure part + indicator doesn't exceed limit
+            if len(part) + len(indicator) > self.max_message_length:
+                # Trim the part to make room for indicator
+                part = part[:self.max_message_length - len(indicator)]
+            
+            parts.append(part + indicator)
+        
+        return parts
+    
+    def _send_message_parts(self, parts: List[str], channel: int = 0, 
+                           destination: Optional[str] = None) -> bool:
+        """
+        Send multiple message parts with proper delays between them.
+        
+        Args:
+            parts: List of message parts to send
+            channel: Channel number (0-7)
+            destination: Destination node ID (None for broadcast)
+            
+        Returns:
+            True if all parts sent successfully, False otherwise
+        """
+        if not parts:
+            return True
+        
+        self.logger.info(f"📤 Sending {len(parts)} message parts")
+        
+        success_count = 0
+        
+        for i, part in enumerate(parts):
+            try:
+                # Send individual part using existing single message logic
+                success = self._send_single_message(part, channel, destination)
+                
+                if success:
+                    success_count += 1
+                    self.logger.info(f"📤 Part {i+1}/{len(parts)} sent successfully")
+                else:
+                    self.logger.error(f"📤 Part {i+1}/{len(parts)} failed to send")
+                    break  # Stop sending if any part fails
+                
+                # Apply delay between parts (except for the last part)
+                if i < len(parts) - 1:
+                    self.logger.info(f"⏱️ Applying inter-part delay: {self.message_send_delay}s")
+                    time.sleep(self.message_send_delay)
+                    
+            except Exception as e:
+                self.logger.error(f"📤 Error sending part {i+1}/{len(parts)}: {e}")
+                break
+        
+        success = success_count == len(parts)
+        
+        if success:
+            self.logger.info(f"✅ All {len(parts)} message parts sent successfully")
+        else:
+            self.logger.error(f"❌ Only {success_count}/{len(parts)} message parts sent successfully")
+        
+        return success
+    
+    def _send_single_message(self, text: str, channel: int = 0, 
+                           destination: Optional[str] = None) -> bool:
+        """
+        Send a single message part (internal method).
+        
+        Args:
+            text: Message text to send (should already be within length limits)
+            channel: Channel number (0-7)
+            destination: Destination node ID (None for broadcast)
+            
+        Returns:
+            True if message sent successfully, False otherwise
+        """
+        if not self.connected or not self.interface:
+            self.logger.error("Cannot send message - not connected to Meshtastic node")
+            return False
+        
+        try:
+            # Enforce message send delay to prevent rapid-fire sending
+            current_time = time.time()
+            time_since_last = current_time - self._last_message_time
+            
+            if time_since_last < self.message_send_delay:
+                delay_needed = self.message_send_delay - time_since_last
+                self.logger.info(f"⏱️ Applying message send delay: {delay_needed:.2f}s")
+                time.sleep(delay_needed)
+            
+            # Final length check (should not be needed, but safety first)
+            if len(text) > self.max_message_length:
+                self.logger.warning(f"📤 Message part still too long ({len(text)} chars), truncating")
+                text = text[:self.max_message_length-3] + "..."
+            
+            # Send message using existing Meshtastic logic
+            if destination:
+                # Ensure destination is in proper format for Meshtastic
+                if destination.isdigit():
+                    # Convert numeric destination to !-prefixed format
+                    numeric_dest = int(destination)
+                    hex_dest = self.numeric_to_hex_id(numeric_dest)
+                    meshtastic_destination = hex_dest
+                elif destination.startswith('!'):
+                    # Already in proper format
+                    meshtastic_destination = destination
+                else:
+                    # Try to ensure proper format
+                    meshtastic_destination = self.ensure_hex_id_format(destination)
+                
+                # Direct message to specific node
+                self.interface.sendText(
+                    text=text,
+                    destinationId=meshtastic_destination,
+                    channelIndex=channel
+                )
+                self.logger.log_message("TX", meshtastic_destination, channel, text, self.local_node_id)
+            else:
+                # Broadcast message
+                self.interface.sendText(
+                    text=text,
+                    channelIndex=channel
+                )
+                self.logger.log_message("TX", "BROADCAST", channel, text, self.local_node_id)
+            
+            # Update last message time after successful send
+            self._last_message_time = time.time()
+            return True
+            
+        except Exception as e:
+            self.logger.error(f"💥 Failed to send message part: {e}")
+            return False
+    
     def send_message(self, text: str, channel: int = 0, 
                     destination: Optional[str] = None) -> bool:
         """
-        Send a message via Meshtastic
+        Send a message via Meshtastic, automatically splitting long messages into multiple parts.
         
         Args:
             text: Message text to send
@@ -772,73 +957,24 @@ class MeshtasticInterface:
             return False
         
         try:
-            self.logger.info(f"📤 SENDING MESSAGE: text='{text}', channel={channel}, destination={destination}")
-            self.logger.info(f"📤 Interface state: connected={self.connected}, interface={self.interface is not None}")
-            self.logger.info(f"📤 Local node ID: {self.local_node_id}")
+            self.logger.info(f"📤 SENDING MESSAGE: length={len(text)} chars, channel={channel}, destination={destination}")
+            self.logger.info(f"📤 Message preview: '{text[:100]}{'...' if len(text) > 100 else ''}'")
+            self.logger.info(f"📤 Max message length: {self.max_message_length} chars")
             
-            # Enforce message send delay to prevent rapid-fire sending
-            current_time = time.time()
-            time_since_last = current_time - self._last_message_time
+            # Split message if it's too long
+            message_parts = self._split_message(text)
             
-            if time_since_last < self.message_send_delay:
-                delay_needed = self.message_send_delay - time_since_last
-                self.logger.info(f"⏱️ Applying message send delay: {delay_needed:.2f}s (configured: {self.message_send_delay}s)")
-                time.sleep(delay_needed)
-            
-            # Truncate message if too long
-            max_length = 200  # Meshtastic text message limit
-            if len(text) > max_length:
-                original_length = len(text)
-                text = text[:max_length-3] + "..."
-                self.logger.info(f"📤 Truncated message from {original_length} to {len(text)} chars")
-            
-            # Send message
-            if destination:
-                # Ensure destination is in proper format for Meshtastic
-                if destination.isdigit():
-                    # Convert numeric destination to !-prefixed format
-                    numeric_dest = int(destination)
-                    hex_dest = self.numeric_to_hex_id(numeric_dest)
-                    self.logger.info(f"🔄 DESTINATION CONVERSION: {destination} → {hex_dest}")
-                    meshtastic_destination = hex_dest
-                elif destination.startswith('!'):
-                    # Already in proper format
-                    meshtastic_destination = destination
-                else:
-                    # Try to ensure proper format
-                    meshtastic_destination = self.ensure_hex_id_format(destination)
-                    self.logger.info(f"🔄 DESTINATION FORMATTING: {destination} → {meshtastic_destination}")
-                
-                # Direct message to specific node
-                self.logger.info(f"📤 Sending DIRECT message to {meshtastic_destination} (original: {destination}) on channel {channel}")
-                self.interface.sendText(
-                    text=text,
-                    destinationId=meshtastic_destination,
-                    channelIndex=channel
-                )
-                self.logger.info(f"✅ DIRECT message sent successfully")
-                self.logger.log_message("TX", meshtastic_destination, channel, text, self.local_node_id)
+            if len(message_parts) == 1:
+                self.logger.info(f"📤 Sending single message ({len(text)} chars)")
+                return self._send_single_message(text, channel, destination)
             else:
-                # Broadcast message
-                self.logger.info(f"📤 Sending BROADCAST message on channel {channel}")
-                self.interface.sendText(
-                    text=text,
-                    channelIndex=channel
-                )
-                self.logger.info(f"✅ BROADCAST message sent successfully")
-                self.logger.log_message("TX", "BROADCAST", channel, text, self.local_node_id)
-            
-            # Update last message time after successful send
-            self._last_message_time = time.time()
-            
-            self.logger.info(f"✅ Message sending completed successfully")
-            return True
+                self.logger.info(f"📤 Splitting long message into {len(message_parts)} parts")
+                return self._send_message_parts(message_parts, channel, destination)
             
         except Exception as e:
             self.logger.error(f"💥 CRITICAL: Failed to send message: {e}")
             import traceback
             self.logger.error(f"💥 Send message traceback: {traceback.format_exc()}")
-            self.logger.error(f"💥 This error must NOT trigger reconnection!")
             # Ensure this error doesn't corrupt connection state
             return False
     

@@ -7,13 +7,13 @@
 - [ ] Update documentation for new features
 
 ### 1.b Version Management Setup
-- [ ] Update pyproject.toml version to 0.2.0-beta.1
-- [ ] Create CHANGELOG.md with release notes
-- [ ] Set up proper Git branching workflow
+- [ x] Update pyproject.toml version to 0.2.0-beta.1
+- [ x] Create CHANGELOG.md with release notes
+- [ x] Set up proper Git branching workflow
 
 ### 1.c Release Branch Creation
-- [ ] Create `release/0.2.0-beta.1` branch from main
-- [ ] Set up GitHub release workflow
+- [ x] Create `release/0.2.0-beta.1` branch from main
+- [ x] Set up GitHub release workflow
 
 ## Phase 2: Feature Enhancements for Beta
 

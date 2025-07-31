@@ -9,6 +9,7 @@ from datetime import datetime
 from typing import Dict, Any
 
 from .base import SimpleResponsePlugin, InteractivePlugin, PluginContext, PluginResponse
+from .bulletin_board import BulletinBoardPlugin
 
 
 class WelcomePlugin(SimpleResponsePlugin):
@@ -231,4 +232,5 @@ BUILTIN_PLUGINS = {
     "calculator": CalculatorPlugin,
     "number_guess": NumberGuessPlugin,
     "node_lookup": NodeLookupPlugin,
+    "bulletin_system": BulletinBoardPlugin,
 }

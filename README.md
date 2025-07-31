@@ -74,18 +74,32 @@ BBMesh supports custom plugins for games, utilities, and integrations. See the [
 ### Git Branching Strategy
 
 - **main**: Stable, production-ready code
-- **develop**: Integration branch for new features  
-- **feature/**: Individual feature development branches
+- **develop**: Integration branch for ongoing development (default branch for new features)
+- **feature/**: Individual feature development branches (branch from `develop`)
 - **release/**: Release preparation branches (e.g., `release/0.2.0-beta.1`)
 - **hotfix/**: Critical bug fixes for production
 
+### Development Workflow
+
+1. **New features**: Create feature branches from `develop`
+   ```bash
+   git checkout develop
+   git checkout -b feature/new-feature-name
+   ```
+
+2. **Feature completion**: Merge back to `develop`
+   ```bash
+   git checkout develop
+   git merge feature/new-feature-name
+   ```
+
 ### Release Process
 
-1. Create release branch from main: `git checkout -b release/x.y.z-beta.n`
+1. Create release branch from `develop`: `git checkout -b release/x.y.z-beta.n`
 2. Update version in `pyproject.toml` and `CHANGELOG.md`
 3. Test and finalize release candidate
-4. Tag release: `git tag vx.y.z-beta.n`
-5. Merge back to main and push tags
+4. Merge release branch to `main` and tag: `git tag vx.y.z-beta.n`
+5. Merge release branch back to `develop` to sync changes
 
 ## Contributing
 

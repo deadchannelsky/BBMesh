@@ -1,0 +1,15 @@
+📋 Welcome to the Community Bulletin Board! 📋
+
+This bulletin board system allows mesh network users to:
+• Post announcements and community messages  
+• Share information and resources
+• Organize content by categories
+• Search and browse community posts
+
+Use the menu options to get started:
+- Post new bulletins to share with the community
+- Read the latest bulletins and announcements  
+- Search for specific topics or information
+- Browse bulletins by category
+
+Happy meshing! 🌐📡

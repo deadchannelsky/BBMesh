@@ -1,66 +1,50 @@
-# BBMesh Configuration File
-# This file contains all the settings for your BBMesh BBS system
-
-# Meshtastic node configuration
 meshtastic:
-  # Serial port settings for ESP32 connection
   serial:
-    port: "/dev/ttyUSB0"  # Adjust for your system (Windows: COM3, Mac: /dev/tty.usbserial-*)
+    port: /dev/ttyUSB0
     baudrate: 115200
     timeout: 1.0
-  
-  # Node identification (auto-detected if null)
   node_id: null
-  
-  # Channels to monitor for incoming messages (0-7)
-  monitored_channels: [0, 1, 2]
-  
-  # Channels where the BBS can respond (usually same as monitored)
-  response_channels: [0, 1, 2]
-  
-  # Only respond to direct messages (not channel broadcasts)
+  monitored_channels:
+  - 0
+  - 1
+  - 2
+  response_channels:
+  - 0
+  - 1
+  - 2
   direct_message_only: false
-
-# Logging configuration
 logging:
-  level: "INFO"  # DEBUG, INFO, WARNING, ERROR, CRITICAL
-  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-  file_path: "logs/bbmesh.log"
-  max_file_size: "10MB"
+  level: INFO
+  format: '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+  file_path: logs/bbmesh.log
+  max_file_size: 10MB
   backup_count: 5
   console_output: true
-
-# Server settings
 server:
-  name: "BBMesh BBS"
-  welcome_message: "Welcome to BBMesh BBS! Your gateway to the mesh network."
-  motd_file: "config/motd.txt"
-  max_message_length: 200  # Maximum characters per message
-  session_timeout: 300     # Session timeout in seconds
-  rate_limit_messages: 10  # Max messages per window
-  rate_limit_window: 60    # Rate limit window in seconds
-  message_send_delay: 1.0  # Minimum seconds between outgoing messages
-
-# Menu system configuration
+  name: BBMesh BBS
+  welcome_message: Welcome to BBMesh BBS! Your gateway to the mesh network.
+  motd_file: config/motd.txt
+  max_message_length: 200
+  session_timeout: 300
+  rate_limit_messages: 10
+  rate_limit_window: 60
+  message_send_delay: 1.0
 menu:
-  menu_file: "config/menus.yaml"
-  timeout: 300           # Menu session timeout in seconds
-  max_depth: 10          # Maximum menu nesting depth
-  prompt_suffix: " > "   # Prompt displayed to users
-
-# Plugin system settings
+  menu_file: config/menus.yaml
+  timeout: 300
+  max_depth: 10
+  prompt_suffix: ' > '
 plugins:
-  plugin_dir: "src/bbmesh/plugins"
-  plugin_config_file: "config/plugins.yaml"
+  plugin_dir: src/bbmesh/plugins
+  plugin_config_file: config/plugins.yaml
   enabled_plugins:
-    - "welcome"
-    - "help"
-    - "time"
-    - "ping"
-  plugin_timeout: 30  # Plugin execution timeout in seconds
-
-# Database configuration
+  - welcome
+  - help
+  - time
+  - ping
+  - bulletin_system
+  plugin_timeout: 30
 database:
-  type: "sqlite"
-  path: "data/bbmesh.db"
-  backup_interval: 3600  # Database backup interval in seconds
+  type: sqlite
+  path: data/bbmesh.db
+  backup_interval: 3600

@@ -1,0 +1,11 @@
+# BBMesh Bulletin Board System Plugin Requirements
+
+# Core dependency - BBMesh framework
+# This plugin requires BBMesh to be installed
+bbmesh>=0.2.0
+
+# Database support
+sqlite3  # Usually included with Python
+
+# Additional utilities
+python-dateutil>=2.8.0
