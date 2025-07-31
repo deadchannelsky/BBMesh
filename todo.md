@@ -2,16 +2,16 @@
 
 ## Phase 1: Pre-Release Preparation
 
-### Code Quality & Testing
+### 1.a Code Quality & Testing
 - [ ] Run full test suite and fix any failing tests
 - [ ] Update documentation for new features
 
-### Version Management Setup
+### 1.b Version Management Setup
 - [ ] Update pyproject.toml version to 0.2.0-beta.1
 - [ ] Create CHANGELOG.md with release notes
 - [ ] Set up proper Git branching workflow
 
-### Release Branch Creation
+### 1.c Release Branch Creation
 - [ ] Create `release/0.2.0-beta.1` branch from main
 - [ ] Set up GitHub release workflow
 
