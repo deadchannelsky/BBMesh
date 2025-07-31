@@ -336,17 +336,15 @@ class BulletinBoardPlugin(InteractivePlugin):
         """Start a new bulletin board session"""
         # Show welcome message and main bulletin menu
         welcome_text = (
-            "📋 Community Bulletin Board 📋\n\n"
-            "Welcome to the mesh network bulletin board!\n"
-            "What would you like to do?\n\n"
-            "1️⃣ Post New Bulletin\n"
-            "2️⃣ Read Recent Bulletins\n"
-            "3️⃣ Browse by Category\n"
-            "4️⃣ Search Bulletins\n"
-            "5️⃣ Show Statistics\n"
-            "9️⃣ Help\n"
-            "0️⃣ Exit\n\n"
-            "Enter your choice:"
+            "Bulletin Board\n\n"
+            "1. Post\n"
+            "2. Read\n"
+            "3. Browse\n"
+            "4. Search\n"
+            "5. Stats\n"
+            "9. Help\n"
+            "0. Exit\n\n"
+            "Choice:"
         )
         
         session_data = {
@@ -402,10 +400,10 @@ class BulletinBoardPlugin(InteractivePlugin):
                 categories = [{"name": cat["name"], "description": cat["description"]} 
                              for cat in self.categories]
             
-            category_text = "📝 Post New Bulletin\n\nSelect a category:\n\n"
+            category_text = "Post Bulletin\n\nCategory:\n\n"
             for i, cat in enumerate(categories, 1):
-                category_text += f"{i}️⃣ {cat['name']} - {cat['description']}\n"
-            category_text += "\nEnter category number:"
+                category_text += f"{i}. {cat['name']}\n"
+            category_text += "\nNumber:"
             
             context.session_data[f"{self.name}_state"] = "posting_category"
             context.session_data[f"{self.name}_categories"] = categories
@@ -428,7 +426,7 @@ class BulletinBoardPlugin(InteractivePlugin):
             # Search bulletins
             context.session_data[f"{self.name}_state"] = "searching"
             return PluginResponse(
-                text="🔍 Search Bulletins\n\nEnter search term (keyword, subject, or author):",
+                text="Search\n\nTerm:",
                 continue_session=True,
                 session_data=context.session_data
             )
@@ -444,13 +442,13 @@ class BulletinBoardPlugin(InteractivePlugin):
         elif user_input == "0":
             # Exit
             return PluginResponse(
-                text="📋 Thanks for using the bulletin board! 73!",
+                text="Thanks! 73!",
                 continue_session=False
             )
         
         else:
             return PluginResponse(
-                text="❌ Invalid choice. Please enter 1-5, 9 for help, or 0 to exit.",
+                text="Invalid. Enter 1-5, 9, or 0.",
                 continue_session=True,
                 session_data=context.session_data
             )
@@ -467,19 +465,19 @@ class BulletinBoardPlugin(InteractivePlugin):
                 context.session_data[f"{self.name}_state"] = "posting_subject"
                 
                 return PluginResponse(
-                    text=f"📝 Posting to: {selected_category}\n\nEnter bulletin subject:",
+                    text=f"To: {selected_category}\n\nSubject:",
                     continue_session=True,
                     session_data=context.session_data
                 )
             else:
                 return PluginResponse(
-                    text="❌ Invalid category number. Please try again:",
+                    text="Invalid number:",
                     continue_session=True,
                     session_data=context.session_data
                 )
         except ValueError:
             return PluginResponse(
-                text="❌ Please enter a valid category number:",
+                text="Enter valid number:",
                 continue_session=True,
                 session_data=context.session_data
             )
@@ -488,14 +486,14 @@ class BulletinBoardPlugin(InteractivePlugin):
         """Handle subject entry for posting"""
         if len(user_input.strip()) < 3:
             return PluginResponse(
-                text="❌ Subject too short. Please enter at least 3 characters:",
+                text="Subject too short (min 3 chars):",
                 continue_session=True,
                 session_data=context.session_data
             )
         
         if len(user_input) > 100:
             return PluginResponse(
-                text="❌ Subject too long. Please keep under 100 characters:",
+                text="Subject too long (max 100 chars):",
                 continue_session=True,
                 session_data=context.session_data
             )
@@ -504,7 +502,7 @@ class BulletinBoardPlugin(InteractivePlugin):
         context.session_data[f"{self.name}_state"] = "posting_content"
         
         return PluginResponse(
-            text=f"📝 Subject: {user_input.strip()}\n\nEnter bulletin content:",
+            text=f"Subject: {user_input.strip()}\n\nContent:",
             continue_session=True,
             session_data=context.session_data
         )
@@ -513,14 +511,14 @@ class BulletinBoardPlugin(InteractivePlugin):
         """Handle content entry and post the bulletin"""
         if len(user_input.strip()) < 10:
             return PluginResponse(
-                text="❌ Content too short. Please enter at least 10 characters:",
+                text="Content too short (min 10 chars):",
                 continue_session=True,
                 session_data=context.session_data
             )
         
         if len(user_input) > self.max_bulletin_length:
             return PluginResponse(
-                text=f"❌ Content too long. Please keep under {self.max_bulletin_length} characters:",
+                text=f"Content too long (max {self.max_bulletin_length} chars):",
                 continue_session=True,
                 session_data=context.session_data
             )
@@ -540,12 +538,9 @@ class BulletinBoardPlugin(InteractivePlugin):
             )
             
             success_text = (
-                f"✅ Bulletin posted successfully!\n\n"
-                f"📋 Bulletin #{bulletin_id}\n"
-                f"📂 Category: {category}\n"
-                f"📝 Subject: {subject}\n"
-                f"👤 Author: {context.user_name}\n\n"
-                f"Your bulletin is now available to the community!"
+                f"Posted! ID #{bulletin_id}\n"
+                f"Category: {category}\n"
+                f"Subject: {subject}"
             )
             
             # Return to main menu
@@ -557,7 +552,7 @@ class BulletinBoardPlugin(InteractivePlugin):
         except Exception as e:
             self.logger.error(f"Error posting bulletin: {e}")
             return PluginResponse(
-                text="❌ Error posting bulletin. Please try again later.",
+                text="Error posting. Try later.",
                 continue_session=False
             )
     
@@ -567,17 +562,15 @@ class BulletinBoardPlugin(InteractivePlugin):
         
         if not bulletins:
             return PluginResponse(
-                text="📋 No bulletins found.\n\nBe the first to post a bulletin!",
+                text="No bulletins found.",
                 continue_session=False
             )
         
-        text = "📖 Recent Bulletins\n\n"
+        text = "Recent\n\n"
         for bulletin in bulletins:
-            text += f"#{bulletin.id} [{bulletin.category}] {bulletin.subject}\n"
-            text += f"👤 {bulletin.author_name} • {bulletin.timestamp.strftime('%m/%d %H:%M')}\n"
-            text += f"{bulletin.content[:100]}{'...' if len(bulletin.content) > 100 else ''}\n\n"
-        
-        text += f"Showing {len(bulletins)} of {len(bulletins)} bulletins"
+            text += f"#{bulletin.id} {bulletin.subject}\n"
+            text += f"{bulletin.author_name} {bulletin.timestamp.strftime('%m/%d %H:%M')}\n"
+            text += f"{bulletin.content[:80]}{'...' if len(bulletin.content) > 80 else ''}\n\n"
         
         return PluginResponse(
             text=text,
@@ -590,16 +583,13 @@ class BulletinBoardPlugin(InteractivePlugin):
         
         if not categories:
             return PluginResponse(
-                text="📂 No categories found.",
+                text="No categories.",
                 continue_session=False
             )
         
-        text = "📂 Bulletin Categories\n\n"
+        text = "Categories\n\n"
         for cat in categories:
-            text += f"📋 {cat['name']} ({cat['count']} bulletins)\n"
-            if cat['description']:
-                text += f"   {cat['description']}\n"
-            text += "\n"
+            text += f"{cat['name']} ({cat['count']})\n"
         
         return PluginResponse(
             text=text,
@@ -611,11 +601,10 @@ class BulletinBoardPlugin(InteractivePlugin):
         stats = self.storage.get_stats()
         
         text = (
-            f"📊 Bulletin Board Statistics\n\n"
-            f"📋 Total Bulletins: {stats['total_bulletins']}\n"
-            f"🆕 Recent (7 days): {stats['recent_bulletins']}\n"
-            f"👥 Active Users: {stats['active_users']}\n\n"
-            f"📂 Categories:\n"
+            f"Stats\n\n"
+            f"Total: {stats['total_bulletins']}\n"
+            f"Recent: {stats['recent_bulletins']}\n"
+            f"Users: {stats['active_users']}\n\n"
         )
         
         for category, count in stats['categories'].items():
@@ -629,18 +618,14 @@ class BulletinBoardPlugin(InteractivePlugin):
     def _show_help(self, context: PluginContext) -> PluginResponse:
         """Show help information"""
         text = (
-            "📋 Bulletin Board Help\n\n"
-            "This system allows you to:\n"
-            "• Post bulletins to share with the community\n"
-            "• Read bulletins from other users\n"
-            "• Search for specific topics\n"
-            "• Browse by category\n\n"
-            "Tips:\n"
-            "• Keep subjects clear and descriptive\n"
-            "• Choose appropriate categories\n"
-            "• Be respectful in your posts\n"
-            "• Check recent bulletins before posting\n\n"
-            "Happy meshing! 📡"
+            "Help\n\n"
+            "Functions:\n"
+            "• Post bulletins\n"
+            "• Read bulletins\n"
+            "• Search topics\n"
+            "• Browse categories\n\n"
+            "Tips: Keep subjects clear, choose appropriate categories, be respectful.\n\n"
+            "Happy meshing!"
         )
         
         return PluginResponse(
@@ -652,7 +637,7 @@ class BulletinBoardPlugin(InteractivePlugin):
         """Handle bulletin search"""
         if len(user_input.strip()) < 2:
             return PluginResponse(
-                text="❌ Search term too short. Please enter at least 2 characters:",
+                text="Term too short (min 2 chars):",
                 continue_session=True,
                 session_data=context.session_data
             )
@@ -661,18 +646,18 @@ class BulletinBoardPlugin(InteractivePlugin):
         
         if not bulletins:
             return PluginResponse(
-                text=f"🔍 No bulletins found for '{user_input.strip()}'",
+                text=f"No results for '{user_input.strip()}'",
                 continue_session=False
             )
         
-        text = f"🔍 Search Results for '{user_input.strip()}'\n\n"
+        text = f"Results '{user_input.strip()}'\n\n"
         for bulletin in bulletins[:10]:  # Limit to 10 results
-            text += f"#{bulletin.id} [{bulletin.category}] {bulletin.subject}\n"
-            text += f"👤 {bulletin.author_name} • {bulletin.timestamp.strftime('%m/%d %H:%M')}\n"
-            text += f"{bulletin.content[:80]}{'...' if len(bulletin.content) > 80 else ''}\n\n"
+            text += f"#{bulletin.id} {bulletin.subject}\n"
+            text += f"{bulletin.author_name} {bulletin.timestamp.strftime('%m/%d')}\n"
+            text += f"{bulletin.content[:60]}{'...' if len(bulletin.content) > 60 else ''}\n\n"
         
         if len(bulletins) > 10:
-            text += f"... and {len(bulletins) - 10} more results"
+            text += f"+{len(bulletins) - 10} more"
         
         return PluginResponse(
             text=text,

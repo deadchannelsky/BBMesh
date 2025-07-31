@@ -42,7 +42,7 @@ class Menu:
     
     def get_display_text(self, show_descriptions: bool = False) -> str:
         """Generate display text for the menu"""
-        lines = [f"📋 {self.title}"]
+        lines = [f"{self.title}"]
         
         if self.description:
             lines.append(f"{self.description}")
@@ -155,7 +155,7 @@ class MenuSystem:
         """Get display text for a menu"""
         menu = self.get_menu(menu_name)
         if not menu:
-            return f"❌ Menu '{menu_name}' not found"
+            return f"Menu '{menu_name}' not found"
         
         show_descriptions = self.settings.get("show_descriptions", False)
         return menu.get_display_text(show_descriptions)
@@ -225,13 +225,13 @@ class MenuSystem:
         if not selected_item:
             return {
                 "action": "show_message",
-                "message": f"❌ Invalid option '{user_input}'. Send the menu number or name."
+                "message": f"Invalid option '{user_input}'. Send the menu number or name."
             }
         
         if not selected_item.enabled:
             return {
                 "action": "show_message",
-                "message": "🚫 This option is currently disabled."
+                "message": "This option is currently disabled."
             }
         
         # Return the item's action
