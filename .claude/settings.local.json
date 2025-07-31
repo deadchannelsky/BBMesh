@@ -3,7 +3,15 @@
     "allow": [
       "WebFetch(domain:docs.anthropic.com)",
       "Bash(mkdir:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:stackoverflow.com)",
+      "Bash(git push:*)",
+      "Bash(find:*)",
+      "WebFetch(domain:python.meshtastic.org)",
+      "Bash(python:*)",
+      "Bash(rm:*)",
+      "Bash(git commit:*)"
     ],
     "deny": []
   }

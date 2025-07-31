@@ -794,15 +794,30 @@ class MeshtasticInterface:
             
             # Send message
             if destination:
+                # Ensure destination is in proper format for Meshtastic
+                if destination.isdigit():
+                    # Convert numeric destination to !-prefixed format
+                    numeric_dest = int(destination)
+                    hex_dest = self.numeric_to_hex_id(numeric_dest)
+                    self.logger.info(f"🔄 DESTINATION CONVERSION: {destination} → {hex_dest}")
+                    meshtastic_destination = hex_dest
+                elif destination.startswith('!'):
+                    # Already in proper format
+                    meshtastic_destination = destination
+                else:
+                    # Try to ensure proper format
+                    meshtastic_destination = self.ensure_hex_id_format(destination)
+                    self.logger.info(f"🔄 DESTINATION FORMATTING: {destination} → {meshtastic_destination}")
+                
                 # Direct message to specific node
-                self.logger.info(f"📤 Sending DIRECT message to {destination} on channel {channel}")
+                self.logger.info(f"📤 Sending DIRECT message to {meshtastic_destination} (original: {destination}) on channel {channel}")
                 self.interface.sendText(
                     text=text,
-                    destinationId=destination,
+                    destinationId=meshtastic_destination,
                     channelIndex=channel
                 )
                 self.logger.info(f"✅ DIRECT message sent successfully")
-                self.logger.log_message("TX", destination, channel, text, self.local_node_id)
+                self.logger.log_message("TX", meshtastic_destination, channel, text, self.local_node_id)
             else:
                 # Broadcast message
                 self.logger.info(f"📤 Sending BROADCAST message on channel {channel}")
@@ -886,11 +901,22 @@ class MeshtasticInterface:
                 return
             
             # Extract message data
-            from_id = str(packet.get('from', 'unknown'))
+            from_id_numeric = str(packet.get('from', 'unknown'))
             to_id = packet.get('to')
             channel = packet.get('channel', 0)
             text = decoded.get('payload', b'').decode('utf-8', errors='ignore')
             hop_limit = packet.get('hopLimit', 0)
+            
+            # Convert sender ID to proper !-prefixed format for consistency
+            if from_id_numeric != 'unknown':
+                try:
+                    from_id = self.ensure_hex_id_format(from_id_numeric)
+                    self.logger.debug(f"🔄 ID CONVERSION: {from_id_numeric} → {from_id}")
+                except Exception as e:
+                    self.logger.debug(f"⚠️ Could not convert from_id {from_id_numeric}: {e}")
+                    from_id = from_id_numeric
+            else:
+                from_id = from_id_numeric
             
             # Get signal quality information
             snr = packet.get('rxSnr', 0.0)
@@ -1087,6 +1113,62 @@ class MeshtasticInterface:
             self.logger.debug(f"Rejecting message on unmonitored channel {channel}")
         
         return is_monitored
+    
+    @staticmethod
+    def numeric_to_hex_id(node_num: int) -> str:
+        """
+        Convert numeric node ID to Meshtastic !-prefixed hex format
+        
+        Args:
+            node_num: Numeric node ID (e.g., 2697665316)
+            
+        Returns:
+            Hex node ID with ! prefix (e.g., "!a0cbef24")
+        """
+        return f"!{node_num:08x}"
+    
+    @staticmethod
+    def hex_id_to_numeric(hex_id: str) -> int:
+        """
+        Convert Meshtastic !-prefixed hex node ID to numeric format
+        
+        Args:
+            hex_id: Hex node ID with ! prefix (e.g., "!a0cbef24")
+            
+        Returns:
+            Numeric node ID (e.g., 2697665316)
+        """
+        if hex_id.startswith('!'):
+            return int(hex_id[1:], 16)
+        else:
+            # If no ! prefix, try to parse as hex anyway
+            return int(hex_id, 16)
+    
+    @staticmethod
+    def ensure_hex_id_format(node_id: str) -> str:
+        """
+        Ensure node ID is in proper !-prefixed hex format
+        
+        Args:
+            node_id: Node ID in any format (numeric string or hex)
+            
+        Returns:
+            Node ID in !-prefixed hex format
+        """
+        if node_id.startswith('!'):
+            return node_id
+        
+        try:
+            # Try to parse as numeric and convert to hex
+            numeric_id = int(node_id)
+            return MeshtasticInterface.numeric_to_hex_id(numeric_id)
+        except ValueError:
+            # If it's already hex without !, add the prefix
+            if all(c in '0123456789abcdefABCDEF' for c in node_id):
+                return f"!{node_id.lower()}"
+            else:
+                # Return as-is if we can't parse it
+                return node_id
     
     def get_mesh_info(self) -> Dict[str, Any]:
         """
