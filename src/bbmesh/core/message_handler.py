@@ -319,7 +319,15 @@ class MessageHandler:
         """Handle direct messages"""
         user_input = message.text.strip()
         
-        # Process menu input through MenuSystem
+        # Check for active plugin sessions first - route to plugin if one is active
+        for plugin_name in self.plugins:
+            plugin_session_data = session.context.get(f"plugin_{plugin_name}", {})
+            if plugin_session_data.get(f"{plugin_name}_active"):
+                self.logger.debug(f"Routing message to active plugin: {plugin_name}")
+                self._execute_plugin(message, session, plugin_name)
+                return
+        
+        # No active plugin - process menu input through MenuSystem
         menu_result = self.menu_system.process_menu_input(session.current_menu, user_input)
         
         # Handle the menu result
@@ -401,7 +409,7 @@ class MessageHandler:
             response = plugin.execute(context)
             
             # Update session data if plugin returned session data
-            if response.session_data:
+            if response.session_data is not None:
                 session.context[f"plugin_{plugin_name}"] = response.session_data
             
             # Send response

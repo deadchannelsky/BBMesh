@@ -162,6 +162,19 @@ class InteractivePlugin(BBMeshPlugin):
     def execute(self, context: PluginContext) -> PluginResponse:
         """Execute interactive plugin"""
         try:
+            # Check for universal exit commands first
+            user_input = context.message.text.strip().lower()
+            exit_commands = ["exit", "quit", "menu", "bbs", "main", "0"]
+            
+            if user_input in exit_commands and context.session_data.get(f"{self.name}_active"):
+                # User wants to exit plugin and return to main BBS
+                self.logger.debug(f"Plugin {self.name} received exit command: {user_input}")
+                return PluginResponse(
+                    text="📋 Returning to BBMesh main menu. Send MENU to see options.",
+                    continue_session=False,
+                    session_data={}  # Clear plugin session data
+                )
+            
             # Check if this is a new session or continuation
             if not context.session_data.get(f"{self.name}_active"):
                 return self.start_session(context)
