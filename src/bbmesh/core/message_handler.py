@@ -66,9 +66,10 @@ class MessageHandler:
     Handles incoming messages and manages user sessions
     """
     
-    def __init__(self, config: Config, mesh_interface: MeshtasticInterface):
+    def __init__(self, config: Config, mesh_interface: MeshtasticInterface, motd_content: Optional[str] = None):
         self.config = config
         self.mesh_interface = mesh_interface
+        self.motd_content = motd_content
         self.logger = BBMeshLogger(__name__)
         
         # Initialize menu system
@@ -280,7 +281,14 @@ class MessageHandler:
         """Handle main menu requests"""
         session.current_menu = "main"
         menu_text = self.menu_system.get_menu_display("main")
-        self._send_response(message, session, menu_text)
+        
+        # Include MOTD with main menu if available
+        if self.motd_content:
+            full_response = f"{self.motd_content}\n\n{menu_text}"
+        else:
+            full_response = menu_text
+        
+        self._send_response(message, session, full_response)
     
     def _handle_ping(self, message: MeshMessage, session: UserSession) -> None:
         """Handle ping requests"""
@@ -322,12 +330,8 @@ class MessageHandler:
             # Handle the menu action
             self._handle_menu_action(message, session, menu_result)
         else:
-            # Unknown action or no valid menu input - show welcome message
-            welcome_response = (
-                f"👋 Welcome to {self.config.server.name}!\n"
-                f"{self.config.server.welcome_message}\n"
-                f"Send HELP for commands or MENU for main menu."
-            )
+            # Unknown action or no valid menu input - show welcome message with MOTD
+            welcome_response = self._build_welcome_message()
             self._send_response(message, session, welcome_response)
     
     def _handle_menu_action(self, message: MeshMessage, session: UserSession, menu_result: Dict[str, Any]) -> None:
@@ -412,6 +416,27 @@ class MessageHandler:
         """Handle broadcast messages that mention the BBS"""
         response = f"👋 Hi {message.sender_name}! Send me a direct message for the {self.config.server.name} menu."
         self._send_response(message, session, response)
+    
+    def _build_welcome_message(self) -> str:
+        """
+        Build welcome message including MOTD if available
+        
+        Returns:
+            Welcome message text
+        """
+        welcome_parts = [f"👋 Welcome to {self.config.server.name}!"]
+        
+        # Add MOTD content if available
+        if self.motd_content:
+            welcome_parts.append(self.motd_content)
+        else:
+            # Fallback to configured welcome message
+            welcome_parts.append(self.config.server.welcome_message)
+        
+        # Add help instructions
+        welcome_parts.append("Send HELP for commands or MENU for main menu.")
+        
+        return "\n\n".join(welcome_parts)
     
     def _handle_mesh_info(self, message: MeshMessage, session: UserSession) -> None:
         """Handle mesh network info requests"""

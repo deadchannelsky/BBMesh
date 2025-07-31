@@ -24,9 +24,12 @@ class BBMeshServer:
         self.logger = BBMeshLogger(__name__)
         self.running = False
         
+        # Load MOTD content
+        self.motd_content = self._load_motd()
+        
         # Initialize components
         self.mesh_interface = MeshtasticInterface(config.meshtastic, config.server.message_send_delay)
-        self.message_handler = MessageHandler(config, self.mesh_interface)
+        self.message_handler = MessageHandler(config, self.mesh_interface, self.motd_content)
         
         # Setup signal handlers for graceful shutdown
         signal.signal(signal.SIGINT, self._signal_handler)
@@ -37,10 +40,9 @@ class BBMeshServer:
         try:
             self.logger.info(f"Starting {self.config.server.name}")
             
-            # Load MOTD if configured
-            motd = self._load_motd()
-            if motd:
-                self.logger.info(f"MOTD loaded: {len(motd)} characters")
+            # Log MOTD status
+            if self.motd_content:
+                self.logger.info(f"MOTD loaded: {len(self.motd_content)} characters")
             
             # Connect to Meshtastic node
             if not self.mesh_interface.connect():
