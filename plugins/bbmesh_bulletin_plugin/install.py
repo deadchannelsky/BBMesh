@@ -91,8 +91,10 @@ class BulletinPluginInstaller:
             raise FileNotFoundError(f"Plugin file not found: {source_plugin}")
         
         # Create data directory for bulletin storage
+        # Ensure parent data directory exists first
+        self.data_dir.mkdir(exist_ok=True)
         bulletin_data_dir = self.data_dir / "bulletin_system"
-        bulletin_data_dir.mkdir(exist_ok=True)
+        bulletin_data_dir.mkdir(parents=True, exist_ok=True)
         print(f"📁 Created data directory: {bulletin_data_dir}")
     
     def update_plugins_config(self) -> None:

@@ -12,8 +12,8 @@ from typing import Dict, Any, List, Optional, Tuple
 from dataclasses import dataclass
 
 # Import BBMesh plugin framework
-from src.bbmesh.plugins.base import InteractivePlugin, PluginContext, PluginResponse
-from src.bbmesh.utils.logger import BBMeshLogger
+from .base import InteractivePlugin, PluginContext, PluginResponse
+from ..utils.logger import BBMeshLogger
 
 
 @dataclass

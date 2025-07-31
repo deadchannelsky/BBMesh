@@ -1,0 +1,111 @@
+plugins:
+  welcome:
+    enabled: true
+    description: Welcome message and basic info
+    timeout: 5
+  help:
+    enabled: true
+    description: Help system and command reference
+    timeout: 5
+  time:
+    enabled: true
+    description: Date and time display
+    timezone: UTC
+    format: '%Y-%m-%d %H:%M:%S %Z'
+    timeout: 5
+  ping:
+    enabled: true
+    description: Network connectivity test
+    include_signal_info: true
+    timeout: 5
+  number_guess:
+    enabled: true
+    description: Number guessing game
+    min_number: 1
+    max_number: 100
+    max_attempts: 7
+    timeout: 30
+  word_game:
+    enabled: false
+    description: Word association game
+    word_list_file: data/words.txt
+    timeout: 60
+  trivia:
+    enabled: false
+    description: Trivia question game
+    question_file: data/trivia.json
+    questions_per_game: 5
+    timeout: 30
+  calculator:
+    enabled: true
+    description: Basic calculator
+    allowed_operations:
+    - +
+    - '-'
+    - '*'
+    - /
+    - '**'
+    - '%'
+    max_expression_length: 50
+    timeout: 10
+  unit_converter:
+    enabled: false
+    description: Unit conversion utility
+    supported_types:
+    - length
+    - weight
+    - temperature
+    timeout: 15
+  weather:
+    enabled: false
+    description: Weather information
+    api_key: ''
+    default_location: London
+    timeout: 15
+  node_lookup:
+    enabled: true
+    description: Mesh node information lookup
+    show_signal_info: true
+    show_last_seen: true
+    timeout: 10
+  bulletin_system:
+    enabled: true
+    description: Community bulletin board system for mesh networks
+    timeout: 60
+    database_path: data/bulletin_system/bulletins.db
+    max_bulletins_per_user: 50
+    max_bulletin_length: 500
+    categories:
+    - name: General
+      description: General community discussions
+      max_bulletins: 200
+    - name: Announcements
+      description: Official announcements and news
+      max_bulletins: 100
+    - name: Emergency
+      description: Emergency communications and alerts
+      max_bulletins: 50
+    - name: Community
+      description: Community events and activities
+      max_bulletins: 150
+    - name: Technical
+      description: Technical discussions and support
+      max_bulletins: 100
+    admin_users: []
+    moderator_users: []
+    auto_expire_days: 30
+    allow_anonymous: true
+    require_approval: false
+    bulletins_per_page: 10
+    max_search_results: 50
+    show_bulletin_ids: true
+    show_timestamps: true
+    show_author_info: true
+    max_posts_per_hour: 5
+    max_posts_per_day: 20
+global:
+  plugin_timeout: 30
+  max_concurrent_sessions: 10
+  error_message: "\u274C Plugin error occurred. Please try again."
+  timeout_message: "\u23F0 Plugin timed out. Please try again."
+  disabled_message: "\U0001F6AB This feature is currently disabled."
