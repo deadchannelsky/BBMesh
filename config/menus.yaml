@@ -38,11 +38,6 @@ menus:
         action: run_plugin
         plugin: bulletin_system
         description: Community bulletin board system
-      '11':
-        title: Bulletin Board
-        action: run_plugin
-        plugin: bulletin_system
-        description: Community bulletin board system
   games:
     title: Games & Entertainment
     description: Fun activities and games
@@ -99,11 +94,6 @@ menus:
         target: main
         description: Return to main menu
       '9':
-        title: Bulletin Management
-        action: run_plugin
-        plugin: bulletin_admin
-        description: Manage bulletin board system
-      '10':
         title: Bulletin Management
         action: run_plugin
         plugin: bulletin_admin
