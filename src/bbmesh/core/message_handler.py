@@ -211,11 +211,11 @@ class MessageHandler:
     def _handle_help_request(self, message: MeshMessage, session: UserSession) -> None:
         """Handle help/command requests"""
         help_text = (
-            f"📻 {self.config.server.name} Commands:\\n"
-            f"MENU - Main menu\\n"
-            f"HELP - This help\\n"
-            f"PING - Test response\\n"
-            f"STATUS - System info\\n"
+            f"📻 {self.config.server.name} Commands:\n"
+            f"MENU - Main menu\n"
+            f"HELP - This help\n"
+            f"PING - Test response\n"
+            f"STATUS - System info\n"
             f"TIME - Current time"
         )
         self._send_response(message, session, help_text)
@@ -223,11 +223,11 @@ class MessageHandler:
     def _handle_menu_request(self, message: MeshMessage, session: UserSession) -> None:
         """Handle main menu requests"""
         menu_text = (
-            f"🏠 {self.config.server.name} Main Menu:\\n"
-            f"1. Help & Commands\\n"
-            f"2. System Status\\n"
-            f"3. Time & Date\\n"
-            f"4. Mesh Info\\n"
+            f"🏠 {self.config.server.name} Main Menu:\n"
+            f"1. Help & Commands\n"
+            f"2. System Status\n"
+            f"3. Time & Date\n"
+            f"4. Mesh Info\n"
             f"Send number or name"
         )
         session.current_menu = "main"
@@ -244,10 +244,10 @@ class MessageHandler:
         uptime = datetime.now() - self.stats["start_time"]
         
         status_text = (
-            f"📊 System Status:\\n"
-            f"Uptime: {uptime.days}d {uptime.seconds//3600}h\\n"
-            f"Messages: {self.stats['total_messages']}\\n"
-            f"Sessions: {len(self.active_sessions)}\\n"
+            f"📊 System Status:\n"
+            f"Uptime: {uptime.days}d {uptime.seconds//3600}h\n"
+            f"Messages: {self.stats['total_messages']}\n"
+            f"Sessions: {len(self.active_sessions)}\n"
             f"Mesh Nodes: {mesh_info.get('node_count', 0)}"
         )
         self._send_response(message, session, status_text)
@@ -280,8 +280,8 @@ class MessageHandler:
         
         # Default response for unrecognized direct messages
         welcome_response = (
-            f"👋 Welcome to {self.config.server.name}!\\n"
-            f"{self.config.server.welcome_message}\\n"
+            f"👋 Welcome to {self.config.server.name}!\n"
+            f"{self.config.server.welcome_message}\n"
             f"Send HELP for commands or MENU for main menu."
         )
         self._send_response(message, session, welcome_response)
@@ -296,10 +296,10 @@ class MessageHandler:
         mesh_info = self.mesh_interface.get_mesh_info()
         
         info_text = (
-            f"🌐 Mesh Network Info:\\n"
-            f"Local Node: {mesh_info.get('local_node_id', 'Unknown')}\\n"
-            f"Connected Nodes: {mesh_info.get('node_count', 0)}\\n"
-            f"Channels: {len(mesh_info.get('monitored_channels', []))}\\n"
+            f"🌐 Mesh Network Info:\n"
+            f"Local Node: {mesh_info.get('local_node_id', 'Unknown')}\n"
+            f"Connected Nodes: {mesh_info.get('node_count', 0)}\n"
+            f"Channels: {len(mesh_info.get('monitored_channels', []))}\n"
             f"Status: {'Connected' if mesh_info.get('connected') else 'Disconnected'}"
         )
         self._send_response(message, session, info_text)

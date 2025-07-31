@@ -16,8 +16,8 @@ class WelcomePlugin(SimpleResponsePlugin):
     
     def generate_response(self, context: PluginContext) -> str:
         return (
-            f"👋 Welcome to BBMesh, {context.user_name}!\\n"
-            f"Your gateway to the mesh network.\\n"
+            f"👋 Welcome to BBMesh, {context.user_name}!\n"
+            f"Your gateway to the mesh network.\n"
             f"Send HELP for commands or MENU for options."
         )
 
@@ -27,13 +27,13 @@ class HelpPlugin(SimpleResponsePlugin):
     
     def generate_response(self, context: PluginContext) -> str:
         return (
-            f"📻 BBMesh Commands:\\n"
-            f"MENU - Main menu\\n"
-            f"HELP - This help\\n"
-            f"PING - Test response\\n"
-            f"STATUS - System info\\n"
-            f"TIME - Current time\\n"
-            f"GAMES - Fun activities\\n"
+            f"📻 BBMesh Commands:\n"
+            f"MENU - Main menu\n"
+            f"HELP - This help\n"
+            f"PING - Test response\n"
+            f"STATUS - System info\n"
+            f"TIME - Current time\n"
+            f"GAMES - Fun activities\n"
             f"UTILS - Useful tools"
         )
 
@@ -59,7 +59,7 @@ class PingPlugin(SimpleResponsePlugin):
         
         if include_signal and hasattr(context.message, 'snr'):
             return (
-                f"🏓 Pong! BBMesh is alive.\\n"
+                f"🏓 Pong! BBMesh is alive.\n"
                 f"Signal: {context.message.snr:.1f}dB SNR, "
                 f"{context.message.rssi}dBm RSSI"
             )
@@ -132,8 +132,8 @@ class NumberGuessPlugin(InteractivePlugin):
         }
         
         response_text = (
-            f"🎲 Number Guessing Game!\\n"
-            f"I'm thinking of a number between {min_num} and {max_num}.\\n"
+            f"🎲 Number Guessing Game!\n"
+            f"I'm thinking of a number between {min_num} and {max_num}.\n"
             f"You have {max_attempts} attempts. What's your guess?"
         )
         
@@ -170,7 +170,7 @@ class NumberGuessPlugin(InteractivePlugin):
             # Correct guess!
             context.session_data[f"{self.name}_active"] = False
             return PluginResponse(
-                text=f"🎉 Correct! The number was {target}.\\nYou got it in {attempts} attempts!",
+                text=f"🎉 Correct! The number was {target}.\nYou got it in {attempts} attempts!",
                 continue_session=False
             )
         
@@ -178,7 +178,7 @@ class NumberGuessPlugin(InteractivePlugin):
             # Out of attempts
             context.session_data[f"{self.name}_active"] = False
             return PluginResponse(
-                text=f"💀 Game over! The number was {target}.\\nBetter luck next time!",
+                text=f"💀 Game over! The number was {target}.\nBetter luck next time!",
                 continue_session=False
             )
         
@@ -219,7 +219,7 @@ class NodeLookupPlugin(SimpleResponsePlugin):
                 f"RSSI: {context.message.rssi}dBm"
             ])
         
-        return "\\n".join(info_parts)
+        return "\n".join(info_parts)
 
 
 # Plugin registry - maps plugin names to classes
