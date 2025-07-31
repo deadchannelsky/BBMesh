@@ -4,7 +4,7 @@ Message handling and user session management for BBMesh
 
 import time
 import re
-from typing import Dict, List, Optional, Set
+from typing import Dict, List, Optional, Set, Any
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from collections import defaultdict
@@ -12,6 +12,9 @@ from collections import defaultdict
 from .config import Config
 from .meshtastic_interface import MeshtasticInterface, MeshMessage
 from ..utils.logger import BBMeshLogger
+from ..menus.menu_system import MenuSystem
+from ..plugins.builtin import BUILTIN_PLUGINS
+from ..plugins.base import PluginContext, PluginResponse
 
 
 @dataclass
@@ -68,6 +71,13 @@ class MessageHandler:
         self.mesh_interface = mesh_interface
         self.logger = BBMeshLogger(__name__)
         
+        # Initialize menu system
+        self.menu_system = MenuSystem(config.menu)
+        
+        # Initialize plugins
+        self.plugins = {}
+        self._initialize_plugins()
+        
         # User session management
         self.active_sessions: Dict[str, UserSession] = {}
         self.last_cleanup = time.time()
@@ -98,7 +108,53 @@ class MessageHandler:
         
     def initialize(self) -> None:
         """Initialize the message handler"""
+        # Validate menu system
+        self._validate_menu_system()
         self.logger.info("Message handler initialized")
+    
+    def _initialize_plugins(self) -> None:
+        """Initialize available plugins"""
+        try:
+            for plugin_name, plugin_class in BUILTIN_PLUGINS.items():
+                if plugin_name in self.config.plugins.enabled_plugins:
+                    plugin_config = {"enabled": True, "timeout": self.config.plugins.plugin_timeout}
+                    plugin_instance = plugin_class(plugin_name, plugin_config)
+                    plugin_instance.initialize()
+                    self.plugins[plugin_name] = plugin_instance
+                    self.logger.info(f"Initialized plugin: {plugin_name}")
+            
+            self.logger.info(f"Loaded {len(self.plugins)} plugins")
+        except Exception as e:
+            self.logger.error(f"Error initializing plugins: {e}")
+    
+    def _validate_menu_system(self) -> None:
+        """Validate menu system configuration"""
+        try:
+            # Check if menu system loaded properly
+            available_menus = self.menu_system.get_available_menus()
+            if not available_menus:
+                self.logger.error("No menus loaded - menu system may not be working")
+                return
+            
+            # Validate menu structure
+            validation_errors = self.menu_system.validate_menu_structure()
+            if validation_errors:
+                self.logger.warning(f"Menu validation errors found:")
+                for error in validation_errors:
+                    self.logger.warning(f"  - {error}")
+            else:
+                self.logger.info("Menu system validation passed")
+            
+            # Check that main menu exists
+            if "main" not in available_menus:
+                self.logger.error("Main menu not found - this may cause issues")
+            
+            # Log menu statistics
+            stats = self.menu_system.get_menu_statistics()
+            self.logger.info(f"Menu system loaded: {stats['total_menus']} menus, {stats['enabled_items']} items")
+            
+        except Exception as e:
+            self.logger.error(f"Error validating menu system: {e}")
     
     def cleanup(self) -> None:
         """Cleanup resources"""
@@ -222,15 +278,8 @@ class MessageHandler:
     
     def _handle_menu_request(self, message: MeshMessage, session: UserSession) -> None:
         """Handle main menu requests"""
-        menu_text = (
-            f"🏠 {self.config.server.name} Main Menu:\n"
-            f"1. Help & Commands\n"
-            f"2. System Status\n"
-            f"3. Time & Date\n"
-            f"4. Mesh Info\n"
-            f"Send number or name"
-        )
         session.current_menu = "main"
+        menu_text = self.menu_system.get_menu_display("main")
         self._send_response(message, session, menu_text)
     
     def _handle_ping(self, message: MeshMessage, session: UserSession) -> None:
@@ -260,31 +309,104 @@ class MessageHandler:
     
     def _handle_direct_message(self, message: MeshMessage, session: UserSession) -> None:
         """Handle direct messages"""
-        text = message.text.strip().lower()
+        user_input = message.text.strip()
         
-        # Check for menu navigation numbers
-        if text.isdigit():
-            menu_num = int(text)
-            if session.current_menu == "main":
-                if menu_num == 1:
-                    self._handle_help_request(message, session)
-                elif menu_num == 2:
-                    self._handle_status(message, session)
-                elif menu_num == 3:
-                    self._handle_time(message, session)
-                elif menu_num == 4:
-                    self._handle_mesh_info(message, session)
-                else:
-                    self._send_response(message, session, "❌ Invalid option. Send MENU for options.")
-                return
+        # Process menu input through MenuSystem
+        menu_result = self.menu_system.process_menu_input(session.current_menu, user_input)
         
-        # Default response for unrecognized direct messages
-        welcome_response = (
-            f"👋 Welcome to {self.config.server.name}!\n"
-            f"{self.config.server.welcome_message}\n"
-            f"Send HELP for commands or MENU for main menu."
-        )
-        self._send_response(message, session, welcome_response)
+        # Handle the menu result
+        if menu_result["action"] in ["error", "show_message"]:
+            self._send_response(message, session, menu_result["message"])
+        elif menu_result["action"] in ["show_help", "show_status", "show_time", "show_mesh_info", 
+                                      "goto_menu", "run_plugin"]:
+            # Handle the menu action
+            self._handle_menu_action(message, session, menu_result)
+        else:
+            # Unknown action or no valid menu input - show welcome message
+            welcome_response = (
+                f"👋 Welcome to {self.config.server.name}!\n"
+                f"{self.config.server.welcome_message}\n"
+                f"Send HELP for commands or MENU for main menu."
+            )
+            self._send_response(message, session, welcome_response)
+    
+    def _handle_menu_action(self, message: MeshMessage, session: UserSession, menu_result: Dict[str, Any]) -> None:
+        """
+        Handle menu action based on MenuSystem result
+        
+        Args:
+            message: Original message
+            session: User session
+            menu_result: Result from MenuSystem.process_menu_input()
+        """
+        action = menu_result["action"]
+        
+        if action == "show_help":
+            self._handle_help_request(message, session)
+        elif action == "show_status":
+            self._handle_status(message, session)
+        elif action == "show_time":
+            self._handle_time(message, session)
+        elif action == "show_mesh_info":
+            self._handle_mesh_info(message, session)
+        elif action == "goto_menu":
+            # Navigate to different menu
+            target_menu = menu_result.get("target", "main")
+            # Add current menu to history before navigating
+            if session.current_menu not in session.menu_history:
+                session.menu_history.append(session.current_menu)
+            session.current_menu = target_menu
+            menu_text = self.menu_system.get_menu_display(target_menu)
+            self._send_response(message, session, menu_text)
+        elif action == "run_plugin":
+            # Run plugin
+            plugin_name = menu_result.get("plugin", "")
+            self._execute_plugin(message, session, plugin_name)
+        else:
+            # Unknown action
+            self._send_response(message, session, "❌ Unknown menu action. Send MENU for options.")
+    
+    def _execute_plugin(self, message: MeshMessage, session: UserSession, plugin_name: str) -> None:
+        """
+        Execute a plugin
+        
+        Args:
+            message: Original message
+            session: User session
+            plugin_name: Name of plugin to execute
+        """
+        if plugin_name not in self.plugins:
+            response = f"❌ Plugin '{plugin_name}' not available."
+            self._send_response(message, session, response)
+            return
+        
+        try:
+            plugin = self.plugins[plugin_name]
+            
+            # Create plugin context
+            context = PluginContext(
+                user_id=session.user_id,
+                user_name=session.user_name,
+                channel=session.channel,
+                session_data=session.context.get(f"plugin_{plugin_name}", {}),
+                message=message,
+                plugin_config=plugin.config
+            )
+            
+            # Execute plugin
+            response = plugin.execute(context)
+            
+            # Update session data if plugin returned session data
+            if response.session_data:
+                session.context[f"plugin_{plugin_name}"] = response.session_data
+            
+            # Send response
+            self._send_response(message, session, response.text)
+            
+        except Exception as e:
+            self.logger.error(f"Error executing plugin {plugin_name}: {e}")
+            error_response = f"❌ Plugin '{plugin_name}' encountered an error."
+            self._send_response(message, session, error_response)
     
     def _handle_mention(self, message: MeshMessage, session: UserSession) -> None:
         """Handle broadcast messages that mention the BBS"""
