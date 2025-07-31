@@ -345,7 +345,7 @@ class BulletinBoardPlugin(InteractivePlugin):
             "4️⃣ Search Bulletins\n"
             "5️⃣ Show Statistics\n"
             "9️⃣ Help\n"
-            "0️⃣ Exit\n\n"
+            "0️⃣ Exit to BBS\n\n"
             "Enter your choice:"
         )
         
@@ -635,6 +635,9 @@ class BulletinBoardPlugin(InteractivePlugin):
             "• Read bulletins from other users\n"
             "• Search for specific topics\n"
             "• Browse by category\n\n"
+            "Navigation:\n"
+            "• Send 0, EXIT, QUIT, or MENU to return to main BBS\n"
+            "• Use numbers to select menu options\n\n"
             "Tips:\n"
             "• Keep subjects clear and descriptive\n"
             "• Choose appropriate categories\n"
