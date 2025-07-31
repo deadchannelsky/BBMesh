@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "bbmesh"
-version = "0.1.0"
+version = "0.2.0-beta.1"
 description = "A Meshtastic BBS system inspired by classic bulletin board systems"
 authors = [{name = "BBMesh Team", email = "contact@bbmesh.dev"}]
 readme = "README.md"
