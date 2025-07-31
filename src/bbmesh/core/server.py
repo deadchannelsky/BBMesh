@@ -27,8 +27,15 @@ class BBMeshServer:
         # Load MOTD content
         self.motd_content = self._load_motd()
         
+        # Validate configuration
+        self._validate_config()
+        
         # Initialize components
-        self.mesh_interface = MeshtasticInterface(config.meshtastic, config.server.message_send_delay)
+        self.mesh_interface = MeshtasticInterface(
+            config.meshtastic, 
+            config.server.message_send_delay,
+            config.server.max_message_length
+        )
         self.message_handler = MessageHandler(config, self.mesh_interface, self.motd_content)
         
         # Setup signal handlers for graceful shutdown
@@ -138,6 +145,31 @@ class BBMeshServer:
             self.logger.warning(f"Failed to load MOTD: {e}")
         
         return None
+    
+    def _validate_config(self) -> None:
+        """
+        Validate server configuration and apply fixes/warnings as needed
+        """
+        # Validate max_message_length
+        max_len = self.config.server.max_message_length
+        
+        if max_len < 50:
+            self.logger.warning(f"max_message_length ({max_len}) is very small, setting to 50")
+            self.config.server.max_message_length = 50
+        elif max_len > 200:
+            self.logger.warning(f"max_message_length ({max_len}) exceeds Meshtastic limit, setting to 200")
+            self.config.server.max_message_length = 200
+        else:
+            self.logger.info(f"Message length limit: {max_len} characters")
+        
+        # Validate message_send_delay
+        delay = self.config.server.message_send_delay
+        if delay < 0.5:
+            self.logger.warning(f"message_send_delay ({delay}s) is very short, consider increasing for mesh reliability")
+        elif delay > 10.0:
+            self.logger.warning(f"message_send_delay ({delay}s) is very long, may impact user experience")
+        
+        self.logger.info("Configuration validation completed")
     
     def _log_status(self) -> None:
         """Log server status information"""
