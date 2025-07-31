@@ -1,0 +1,67 @@
+# Menu additions for BBMesh Bulletin Board System Plugin
+# These entries should be added to BBMesh's config/menus.yaml
+
+# Addition to main menu
+main:
+  options:
+    7:
+      title: "Bulletin Board"
+      action: "run_plugin"
+      plugin: "bulletin_system"
+      description: "Community bulletin board system"
+
+# Addition to utilities menu  
+utilities:
+  options:
+    5:
+      title: "Bulletin Management"
+      action: "run_plugin"
+      plugin: "bulletin_admin"
+      description: "Manage bulletin board system"
+
+# New bulletin-specific menu (to be added as new menu)
+bulletin_board:
+  title: "Community Bulletin Board"
+  description: "Mesh network community bulletin board system"
+  parent: "main"
+  options:
+    1:
+      title: "📝 Post New Bulletin"
+      action: "run_plugin"
+      plugin: "bulletin_system"
+      plugin_action: "post_bulletin"
+      description: "Create a new bulletin post"
+    2:
+      title: "📖 Read Bulletins"
+      action: "run_plugin"
+      plugin: "bulletin_system" 
+      plugin_action: "read_bulletins"
+      description: "Browse and read community bulletins"
+    3:
+      title: "🔍 Search Bulletins"
+      action: "run_plugin"
+      plugin: "bulletin_system"
+      plugin_action: "search_bulletins"
+      description: "Search bulletins by keyword or category"
+    4:
+      title: "📋 List Categories"
+      action: "run_plugin"
+      plugin: "bulletin_system"
+      plugin_action: "list_categories"
+      description: "View bulletin categories"
+    5:
+      title: "📊 Bulletin Stats"
+      action: "run_plugin"
+      plugin: "bulletin_system"
+      plugin_action: "show_stats"
+      description: "View bulletin board statistics"
+    7:
+      title: "⚙️ Admin Panel"
+      action: "run_plugin"
+      plugin: "bulletin_admin"
+      description: "Administrative functions (admin only)"
+    8:
+      title: "🔙 Back to Main Menu"
+      action: "goto_menu"
+      target: "main"
+      description: "Return to main menu"

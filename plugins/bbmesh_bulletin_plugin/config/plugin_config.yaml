@@ -1,0 +1,50 @@
+# BBMesh Bulletin Board System Plugin Configuration Template
+# This file shows the configuration structure for the bulletin system plugin
+
+bulletin_system:
+  enabled: true
+  description: "Community bulletin board system for mesh networks"
+  timeout: 60
+  
+  # Bulletin storage settings
+  database_path: "data/bulletin_system.db"
+  max_bulletins_per_user: 50
+  max_bulletin_length: 500
+  
+  # Categories for organizing bulletins
+  categories:
+    - name: "General"
+      description: "General community discussions"
+      max_bulletins: 200
+    - name: "Announcements" 
+      description: "Official announcements and news"
+      max_bulletins: 100
+    - name: "Emergency"
+      description: "Emergency communications and alerts"
+      max_bulletins: 50
+    - name: "Community"
+      description: "Community events and activities"
+      max_bulletins: 150
+    - name: "Technical"
+      description: "Technical discussions and support"
+      max_bulletins: 100
+  
+  # Administrative settings
+  admin_users: []  # Node IDs of admin users
+  moderator_users: []  # Node IDs of moderator users
+  
+  # Bulletin management
+  auto_expire_days: 30  # Automatically expire bulletins after N days
+  allow_anonymous: true  # Allow anonymous bulletin posting
+  require_approval: false  # Require admin approval for new bulletins
+  
+  # Search and display settings
+  bulletins_per_page: 10
+  max_search_results: 50
+  show_bulletin_ids: true
+  show_timestamps: true
+  show_author_info: true
+  
+  # Rate limiting
+  max_posts_per_hour: 5
+  max_posts_per_day: 20

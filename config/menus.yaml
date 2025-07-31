@@ -1,105 +1,117 @@
-# BBMesh Menu System Configuration
-# Defines the hierarchical menu structure
-
 menus:
   main:
-    title: "BBMesh Main Menu"
-    description: "Welcome to the BBMesh BBS system"
+    title: BBMesh Main Menu
+    description: Welcome to the BBMesh BBS system
     options:
       1:
-        title: "Help & Commands"
-        action: "show_help"
-        description: "Display available commands and help information"
+        title: Help & Commands
+        action: show_help
+        description: Display available commands and help information
       2:
-        title: "System Status"
-        action: "show_status"
-        description: "Display system and mesh network status"
+        title: System Status
+        action: show_status
+        description: Display system and mesh network status
       3:
-        title: "Time & Date"
-        action: "show_time"
-        description: "Display current date and time"
+        title: Time & Date
+        action: show_time
+        description: Display current date and time
       4:
-        title: "Mesh Info"
-        action: "show_mesh_info"
-        description: "Display mesh network information"
+        title: Mesh Info
+        action: show_mesh_info
+        description: Display mesh network information
       5:
-        title: "Games & Fun"
-        action: "goto_menu"
-        target: "games"
-        description: "Access games and entertainment"
+        title: Games & Fun
+        action: goto_menu
+        target: games
+        description: Access games and entertainment
       6:
-        title: "Utilities"
-        action: "goto_menu"
-        target: "utilities"
-        description: "Useful tools and calculators"
+        title: Utilities
+        action: goto_menu
+        target: utilities
+        description: Useful tools and calculators
       9:
-        title: "About BBMesh"
-        action: "show_about"
-        description: "Information about this BBS system"
-
+        title: About BBMesh
+        action: show_about
+        description: Information about this BBS system
+      '10':
+        title: Bulletin Board
+        action: run_plugin
+        plugin: bulletin_system
+        description: Community bulletin board system
   games:
-    title: "Games & Entertainment"
-    description: "Fun activities and games"
-    parent: "main"
+    title: Games & Entertainment
+    description: Fun activities and games
+    parent: main
     options:
       1:
-        title: "Number Guessing Game"
-        action: "run_plugin"
-        plugin: "number_guess"
-        description: "Guess the number between 1-100"
+        title: Number Guessing Game
+        action: run_plugin
+        plugin: number_guess
+        description: Guess the number between 1-100
       2:
-        title: "Word Game"
-        action: "run_plugin"
-        plugin: "word_game"
-        description: "Word association and puzzles"
+        title: Word Game
+        action: run_plugin
+        plugin: word_game
+        description: Word association and puzzles
       3:
-        title: "Trivia"
-        action: "run_plugin"
-        plugin: "trivia"
-        description: "Test your knowledge"
+        title: Trivia
+        action: run_plugin
+        plugin: trivia
+        description: Test your knowledge
       8:
-        title: "Back to Main Menu"
-        action: "goto_menu"
-        target: "main"
-        description: "Return to main menu"
-
+        title: Back to Main Menu
+        action: goto_menu
+        target: main
+        description: Return to main menu
   utilities:
-    title: "Utilities & Tools"
-    description: "Helpful tools and calculators"
-    parent: "main"
+    title: Utilities & Tools
+    description: Helpful tools and calculators
+    parent: main
     options:
       1:
-        title: "Calculator"
-        action: "run_plugin"
-        plugin: "calculator"
-        description: "Basic calculator functions"
+        title: Calculator
+        action: run_plugin
+        plugin: calculator
+        description: Basic calculator functions
       2:
-        title: "Unit Converter"
-        action: "run_plugin"
-        plugin: "unit_converter"
-        description: "Convert between different units"
+        title: Unit Converter
+        action: run_plugin
+        plugin: unit_converter
+        description: Convert between different units
       3:
-        title: "Weather Info"
-        action: "run_plugin"
-        plugin: "weather"
-        description: "Current weather information"
+        title: Weather Info
+        action: run_plugin
+        plugin: weather
+        description: Current weather information
       4:
-        title: "Node Lookup"
-        action: "run_plugin"
-        plugin: "node_lookup"
-        description: "Look up information about mesh nodes"
+        title: Node Lookup
+        action: run_plugin
+        plugin: node_lookup
+        description: Look up information about mesh nodes
       8:
-        title: "Back to Main Menu"
-        action: "goto_menu"
-        target: "main"
-        description: "Return to main menu"
-
-# Menu display settings
+        title: Back to Main Menu
+        action: goto_menu
+        target: main
+        description: Return to main menu
+      '9':
+        title: Bulletin Management
+        action: run_plugin
+        plugin: bulletin_admin
+        description: Manage bulletin board system
 settings:
   show_numbers: true
-  show_descriptions: false  # Set to true for detailed descriptions
+  show_descriptions: false
   max_options_per_page: 8
   timeout_seconds: 300
-  back_commands: ["back", "b", ".."]
-  home_commands: ["home", "main", "menu"]
-  help_commands: ["help", "h", "?"]
+  back_commands:
+  - back
+  - b
+  - ..
+  home_commands:
+  - home
+  - main
+  - menu
+  help_commands:
+  - help
+  - h
+  - '?'
