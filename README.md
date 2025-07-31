@@ -1,5 +1,7 @@
 # BBMesh - Meshtastic BBS System
 
+📋 **[Release Planning & Roadmap](todo.md)** - Current development status and beta release plan
+
 A bulletin board system (BBS) for Meshtastic mesh networks, inspired by the classic BBS systems of the early computing era. BBMesh provides an interactive, menu-driven interface accessible through Meshtastic radio nodes, bringing the nostalgic experience of dial-up BBSs to modern mesh networking.
 
 ## Features
