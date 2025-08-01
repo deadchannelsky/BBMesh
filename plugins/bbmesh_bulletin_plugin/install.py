@@ -161,39 +161,61 @@ class BulletinPluginInstaller:
         if 'main' not in config['menus']:
             config['menus']['main'] = {'title': 'BBMesh Main Menu', 'options': {}}
         
-        # Find next available slot in main menu
         main_options = config['menus']['main'].get('options', {})
-        next_slot = max([int(k) for k in main_options.keys() if str(k).isdigit()] + [0]) + 1
         
-        # Add bulletin board entry
-        main_options[str(next_slot)] = {
-            'title': 'Bulletin Board',
-            'action': 'run_plugin',
-            'plugin': 'bulletin_system',
-            'description': 'Community bulletin board system'
-        }
+        # Check if bulletin_system plugin entry already exists in main menu
+        bulletin_system_exists = any(
+            item.get('plugin') == 'bulletin_system' 
+            for item in main_options.values()
+        )
         
-        config['menus']['main']['options'] = main_options
+        if not bulletin_system_exists:
+            # Find next available slot in main menu
+            next_slot = max([int(k) for k in main_options.keys() if str(k).isdigit()] + [0]) + 1
+            
+            # Add bulletin board entry
+            main_options[str(next_slot)] = {
+                'title': 'Bulletin Board',
+                'action': 'run_plugin',
+                'plugin': 'bulletin_system',
+                'description': 'Community bulletin board system'
+            }
+            
+            config['menus']['main']['options'] = main_options
+            print("✅ Added Bulletin Board to main menu")
+        else:
+            print("ℹ️ Bulletin Board entry already exists in main menu")
         
         # Add bulletin management to utilities menu if it exists
         if 'utilities' in config['menus']:
             util_options = config['menus']['utilities'].get('options', {})
-            next_util_slot = max([int(k) for k in util_options.keys() if str(k).isdigit()] + [0]) + 1
             
-            util_options[str(next_util_slot)] = {
-                'title': 'Bulletin Management',
-                'action': 'run_plugin',
-                'plugin': 'bulletin_admin', 
-                'description': 'Manage bulletin board system'
-            }
+            # Check if bulletin_admin plugin entry already exists in utilities menu
+            bulletin_admin_exists = any(
+                item.get('plugin') == 'bulletin_admin' 
+                for item in util_options.values()
+            )
             
-            config['menus']['utilities']['options'] = util_options
+            if not bulletin_admin_exists:
+                next_util_slot = max([int(k) for k in util_options.keys() if str(k).isdigit()] + [0]) + 1
+                
+                util_options[str(next_util_slot)] = {
+                    'title': 'Bulletin Management',
+                    'action': 'run_plugin',
+                    'plugin': 'bulletin_admin', 
+                    'description': 'Manage bulletin board system'
+                }
+                
+                config['menus']['utilities']['options'] = util_options
+                print("✅ Added Bulletin Management to utilities menu")
+            else:
+                print("ℹ️ Bulletin Management entry already exists in utilities menu")
         
         # Write updated configuration
         with open(menus_file, 'w') as f:
             yaml.dump(config, f, default_flow_style=False, sort_keys=False)
         
-        print("✅ Updated menus.yaml with bulletin system menu entries")
+        print("✅ Menu configuration updated successfully")
     
     def update_bbmesh_config(self) -> None:
         """Update main BBMesh configuration to include bulletin plugin"""
