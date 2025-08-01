@@ -110,14 +110,33 @@ install_application() {
     # Copy application files
     cp -r "$PROJECT_DIR"/* "$INSTALL_DIR/"
     
+    # Set ownership before creating venv
+    chown -R "$SERVICE_USER:$SERVICE_USER" "$INSTALL_DIR"
+    
+    # Set proper permissions
+    chmod -R 755 "$INSTALL_DIR"
+    
     # Create virtual environment as service user
-    sudo -u "$SERVICE_USER" python3 -m venv "$INSTALL_DIR/venv"
+    log_info "Creating virtual environment..."
+    if ! sudo -u "$SERVICE_USER" python3 -m venv "$INSTALL_DIR/venv"; then
+        log_error "Failed to create virtual environment"
+        log_info "Checking permissions on $INSTALL_DIR:"
+        ls -la "$INSTALL_DIR"
+        exit 1
+    fi
     
     # Install application in virtual environment
-    sudo -u "$SERVICE_USER" "$INSTALL_DIR/venv/bin/pip" install -e "$INSTALL_DIR"
+    log_info "Installing BBMesh in virtual environment..."
+    if ! sudo -u "$SERVICE_USER" "$INSTALL_DIR/venv/bin/pip" install -e "$INSTALL_DIR"; then
+        log_error "Failed to install BBMesh in virtual environment"
+        log_info "Checking venv permissions:"
+        ls -la "$INSTALL_DIR/venv/bin/"
+        exit 1
+    fi
     
-    # Set ownership
+    # Set final ownership and permissions
     chown -R "$SERVICE_USER:$SERVICE_USER" "$INSTALL_DIR"
+    chmod -R 755 "$INSTALL_DIR"
     
     log_info "Application installed"
 }
