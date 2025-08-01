@@ -49,8 +49,18 @@ class Menu:
         
         lines.append("")  # Empty line
         
-        # Sort items by key for consistent display
-        sorted_items = sorted(self.items.items(), key=lambda x: x[0])
+        # Sort items by key for consistent display (numeric when possible, alphabetic fallback)
+        def sort_key(item):
+            """Custom sorting function that handles numeric menu keys properly"""
+            key = item[0]
+            try:
+                # Try to convert to integer for proper numeric sorting
+                return (0, int(key))
+            except ValueError:
+                # Fall back to string sorting for non-numeric keys
+                return (1, key)
+        
+        sorted_items = sorted(self.items.items(), key=sort_key)
         
         for key, item in sorted_items:
             if not item.enabled:
