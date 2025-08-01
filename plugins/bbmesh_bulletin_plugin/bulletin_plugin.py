@@ -393,7 +393,10 @@ class BulletinBoardPlugin(InteractivePlugin):
     
     def _handle_main_menu(self, context: PluginContext, user_input: str) -> PluginResponse:
         """Handle main menu selection"""
-        if user_input == "1":
+        # Accept both numeric and abbreviated commands
+        user_input = user_input.upper()
+        
+        if user_input == "1" or user_input == "P":
             # Start posting process
             categories = self.storage.get_categories()
             if not categories:
@@ -414,15 +417,15 @@ class BulletinBoardPlugin(InteractivePlugin):
                 session_data=context.session_data
             )
         
-        elif user_input == "2":
+        elif user_input == "2" or user_input == "R":
             # Read recent bulletins
             return self._show_recent_bulletins(context)
         
-        elif user_input == "3":
+        elif user_input == "3" or user_input == "B":
             # Browse by category
             return self._show_categories(context)
         
-        elif user_input == "4":
+        elif user_input == "4" or user_input == "S":
             # Search bulletins
             context.session_data[f"{self.name}_state"] = "searching"
             return PluginResponse(
@@ -435,7 +438,7 @@ class BulletinBoardPlugin(InteractivePlugin):
             # Show statistics
             return self._show_statistics(context)
         
-        elif user_input == "9":
+        elif user_input == "9" or user_input == "H":
             # Show help
             return self._show_help(context)
         
@@ -544,16 +547,27 @@ class BulletinBoardPlugin(InteractivePlugin):
             )
             
             # Return to main menu
+            success_text += f"\n\n{self._get_abbreviated_menu()}"
             return PluginResponse(
                 text=success_text,
-                continue_session=False
+                continue_session=True,
+                session_data={
+                    f"{self.name}_active": True,
+                    f"{self.name}_state": "main_menu",
+                    f"{self.name}_page": 0
+                }
             )
             
         except Exception as e:
             self.logger.error(f"Error posting bulletin: {e}")
             return PluginResponse(
-                text="Error posting. Try later.",
-                continue_session=False
+                text=f"Error posting. Try later.\n\n{self._get_abbreviated_menu()}",
+                continue_session=True,
+                session_data={
+                    f"{self.name}_active": True,
+                    f"{self.name}_state": "main_menu",
+                    f"{self.name}_page": 0
+                }
             )
     
     def _show_recent_bulletins(self, context: PluginContext) -> PluginResponse:
@@ -562,8 +576,8 @@ class BulletinBoardPlugin(InteractivePlugin):
         
         if not bulletins:
             return PluginResponse(
-                text="No bulletins found.",
-                continue_session=False
+                text=f"No bulletins found.\n\n{self._get_abbreviated_menu()}",
+                continue_session=True
             )
         
         text = "Recent\n\n"
@@ -572,9 +586,11 @@ class BulletinBoardPlugin(InteractivePlugin):
             text += f"{bulletin.author_name} {bulletin.timestamp.strftime('%m/%d %H:%M')}\n"
             text += f"{bulletin.content[:80]}{'...' if len(bulletin.content) > 80 else ''}\n\n"
         
+        text += f"{self._get_abbreviated_menu()}"
+        
         return PluginResponse(
             text=text,
-            continue_session=False
+            continue_session=True
         )
     
     def _show_categories(self, context: PluginContext) -> PluginResponse:
@@ -583,17 +599,19 @@ class BulletinBoardPlugin(InteractivePlugin):
         
         if not categories:
             return PluginResponse(
-                text="No categories.",
-                continue_session=False
+                text=f"No categories.\n\n{self._get_abbreviated_menu()}",
+                continue_session=True
             )
         
         text = "Categories\n\n"
         for cat in categories:
             text += f"{cat['name']} ({cat['count']})\n"
         
+        text += f"\n{self._get_abbreviated_menu()}"
+        
         return PluginResponse(
             text=text,
-            continue_session=False
+            continue_session=True
         )
     
     def _show_statistics(self, context: PluginContext) -> PluginResponse:
@@ -610,10 +628,16 @@ class BulletinBoardPlugin(InteractivePlugin):
         for category, count in stats['categories'].items():
             text += f"   {category}: {count} bulletins\n"
         
+        text += f"\n{self._get_abbreviated_menu()}"
+        
         return PluginResponse(
             text=text,
-            continue_session=False
+            continue_session=True
         )
+    
+    def _get_abbreviated_menu(self) -> str:
+        """Get inline abbreviated menu for post-function display"""
+        return "R)ead, P)ost, B)rowse, S)earch, H)elp, 0)Exit:"
     
     def _show_help(self, context: PluginContext) -> PluginResponse:
         """Show help information"""
@@ -625,12 +649,14 @@ class BulletinBoardPlugin(InteractivePlugin):
             "• Search topics\n"
             "• Browse categories\n\n"
             "Tips: Keep subjects clear, choose appropriate categories, be respectful.\n\n"
-            "Happy meshing!"
+            "Happy meshing!\n\n"
         )
+        
+        text += self._get_abbreviated_menu()
         
         return PluginResponse(
             text=text,
-            continue_session=False
+            continue_session=True
         )
     
     def _handle_searching(self, context: PluginContext, user_input: str) -> PluginResponse:
@@ -646,8 +672,8 @@ class BulletinBoardPlugin(InteractivePlugin):
         
         if not bulletins:
             return PluginResponse(
-                text=f"No results for '{user_input.strip()}'",
-                continue_session=False
+                text=f"No results for '{user_input.strip()}'\n\n{self._get_abbreviated_menu()}",
+                continue_session=True
             )
         
         text = f"Results '{user_input.strip()}'\n\n"
@@ -657,11 +683,15 @@ class BulletinBoardPlugin(InteractivePlugin):
             text += f"{bulletin.content[:60]}{'...' if len(bulletin.content) > 60 else ''}\n\n"
         
         if len(bulletins) > 10:
-            text += f"+{len(bulletins) - 10} more"
+            text += f"+{len(bulletins) - 10} more\n\n"
+        else:
+            text += "\n"
+        
+        text += self._get_abbreviated_menu()
         
         return PluginResponse(
             text=text,
-            continue_session=False
+            continue_session=True
         )
     
     def validate_config(self) -> bool:
