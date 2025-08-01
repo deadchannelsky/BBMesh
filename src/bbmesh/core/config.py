@@ -204,3 +204,93 @@ class Config:
     def create_default(cls) -> "Config":
         """Create a default configuration"""
         return cls()
+    
+    def validate_service_deployment(self) -> List[str]:
+        """
+        Validate configuration for service deployment
+        
+        Returns:
+            List of validation errors (empty if valid)
+        """
+        errors = []
+        
+        # Check if paths are absolute for service deployment
+        if not Path(self.logging.file_path).is_absolute():
+            errors.append("logging.file_path must be absolute for service deployment (e.g., /var/log/bbmesh/bbmesh.log)")
+        
+        if not Path(self.database.path).is_absolute():
+            errors.append("database.path must be absolute for service deployment (e.g., /var/lib/bbmesh/bbmesh.db)")
+        
+        # Check if MOTD file path is absolute or None
+        if self.server.motd_file and not Path(self.server.motd_file).is_absolute():
+            errors.append("server.motd_file should be absolute for service deployment (e.g., /opt/bbmesh/config/motd.txt)")
+        
+        # Check if menu file path is absolute
+        if not Path(self.menu.menu_file).is_absolute():
+            errors.append("menu.menu_file should be absolute for service deployment (e.g., /opt/bbmesh/config/menus.yaml)")
+        
+        # Check if plugin config file path is absolute
+        if not Path(self.plugins.plugin_config_file).is_absolute():
+            errors.append("plugins.plugin_config_file should be absolute for service deployment (e.g., /opt/bbmesh/config/plugins.yaml)")
+        
+        # Check if plugin directory path is absolute
+        if not Path(self.plugins.plugin_dir).is_absolute():
+            errors.append("plugins.plugin_dir should be absolute for service deployment (e.g., /opt/bbmesh/src/bbmesh/plugins)")
+        
+        # Validate serial port
+        if not self.meshtastic.serial.port.startswith('/dev/'):
+            errors.append("meshtastic.serial.port should be a device path (e.g., /dev/ttyUSB0)")
+        
+        # Check logging level
+        valid_levels = ['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL']
+        if self.logging.level.upper() not in valid_levels:
+            errors.append(f"logging.level must be one of: {', '.join(valid_levels)}")
+        
+        # Check resource limits
+        if self.server.max_message_length > 200:
+            errors.append("server.max_message_length should not exceed 200 characters for Meshtastic compatibility")
+        
+        if self.server.max_message_length < 50:
+            errors.append("server.max_message_length should be at least 50 characters for usability")
+        
+        if self.server.message_send_delay < 0.5:
+            errors.append("server.message_send_delay should be at least 0.5 seconds for mesh reliability")
+        
+        # Check timeout values
+        if self.server.session_timeout < 60:
+            errors.append("server.session_timeout should be at least 60 seconds")
+        
+        if self.plugins.plugin_timeout < 5:
+            errors.append("plugins.plugin_timeout should be at least 5 seconds")
+        
+        return errors
+    
+    def create_service_config(self, install_dir: str = "/opt/bbmesh") -> "Config":
+        """
+        Create a configuration suitable for service deployment
+        
+        Args:
+            install_dir: Base installation directory
+            
+        Returns:
+            New Config instance with service-appropriate paths
+        """
+        # Create a copy of current config
+        service_config = Config.from_dict(self.to_dict())
+        
+        # Update paths for service deployment
+        service_config.logging.file_path = "/var/log/bbmesh/bbmesh.log"
+        service_config.database.path = "/var/lib/bbmesh/bbmesh.db"
+        service_config.server.motd_file = f"{install_dir}/config/motd.txt"
+        service_config.menu.menu_file = f"{install_dir}/config/menus.yaml"
+        service_config.plugins.plugin_config_file = f"{install_dir}/config/plugins.yaml"
+        service_config.plugins.plugin_dir = f"{install_dir}/src/bbmesh/plugins"
+        
+        # Disable console output for service
+        service_config.logging.console_output = False
+        
+        # Set appropriate logging level for production
+        if service_config.logging.level == "DEBUG":
+            service_config.logging.level = "INFO"
+        
+        return service_config
