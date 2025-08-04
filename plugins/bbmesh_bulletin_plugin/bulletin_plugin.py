@@ -577,7 +577,8 @@ class BulletinBoardPlugin(InteractivePlugin):
         if not bulletins:
             return PluginResponse(
                 text=f"No bulletins found.\n\n{self._get_abbreviated_menu()}",
-                continue_session=True
+                continue_session=True,
+                session_data=context.session_data
             )
         
         text = "Recent\n\n"
@@ -586,11 +587,16 @@ class BulletinBoardPlugin(InteractivePlugin):
             text += f"{bulletin.author_name} {bulletin.timestamp.strftime('%m/%d %H:%M')}\n"
             text += f"{bulletin.content[:80]}{'...' if len(bulletin.content) > 80 else ''}\n\n"
         
-        text += f"{self._get_abbreviated_menu()}"
+        text += f"Enter bulletin # to read, or {self._get_reading_menu()}"
+        
+        # Set session state to reading_bulletins and store bulletin list
+        context.session_data[f"{self.name}_state"] = "reading_bulletins"
+        context.session_data[f"{self.name}_bulletin_list"] = [b.id for b in bulletins]
         
         return PluginResponse(
             text=text,
-            continue_session=True
+            continue_session=True,
+            session_data=context.session_data
         )
     
     def _show_categories(self, context: PluginContext) -> PluginResponse:
@@ -639,6 +645,10 @@ class BulletinBoardPlugin(InteractivePlugin):
         """Get inline abbreviated menu for post-function display"""
         return "R)ead, P)ost, B)rowse, S)earch, H)elp, 0)Exit:"
     
+    def _get_reading_menu(self) -> str:
+        """Get inline menu for bulletin reading context"""
+        return "# to read, R)efresh, M)ain menu, 0)Exit:"
+    
     def _show_help(self, context: PluginContext) -> PluginResponse:
         """Show help information"""
         text = (
@@ -658,6 +668,91 @@ class BulletinBoardPlugin(InteractivePlugin):
             text=text,
             continue_session=True
         )
+    
+    def _show_full_bulletin(self, context: PluginContext, bulletin_id: int) -> PluginResponse:
+        """Display a full bulletin by ID"""
+        bulletin = self.storage.get_bulletin_by_id(bulletin_id)
+        
+        if not bulletin:
+            return PluginResponse(
+                text=f"Bulletin #{bulletin_id} not found.\n\n{self._get_reading_menu()}",
+                continue_session=True,
+                session_data=context.session_data
+            )
+        
+        text = (
+            f"Bulletin #{bulletin.id}\n"
+            f"From: {bulletin.author_name}\n"
+            f"Date: {bulletin.timestamp.strftime('%m/%d/%Y %H:%M')}\n"
+            f"Category: {bulletin.category}\n"
+            f"Subject: {bulletin.subject}\n\n"
+            f"{bulletin.content}\n\n"
+            f"{self._get_reading_menu()}"
+        )
+        
+        return PluginResponse(
+            text=text,
+            continue_session=True,
+            session_data=context.session_data
+        )
+    
+    def _handle_reading_bulletins(self, context: PluginContext, user_input: str) -> PluginResponse:
+        """Handle bulletin reading menu input"""
+        user_input = user_input.strip().upper()
+        
+        # Handle menu commands
+        if user_input == "R":
+            # Refresh bulletin list
+            return self._show_recent_bulletins(context)
+        
+        elif user_input == "M":
+            # Return to main menu
+            context.session_data[f"{self.name}_state"] = "main_menu"
+            welcome_text = (
+                "Bulletin Board\n\n"
+                "1. Post\n"
+                "2. Read\n"
+                "3. Browse\n"
+                "4. Search\n"
+                "5. Stats\n"
+                "9. Help\n"
+                "0. Exit\n\n"
+                "Choice:"
+            )
+            return PluginResponse(
+                text=welcome_text,
+                continue_session=True,
+                session_data=context.session_data
+            )
+        
+        elif user_input == "0":
+            # Exit plugin
+            return PluginResponse(
+                text="Thanks! 73!",
+                continue_session=False
+            )
+        
+        # Check if input is a bulletin ID number
+        try:
+            bulletin_id = int(user_input)
+            bulletin_list = context.session_data.get(f"{self.name}_bulletin_list", [])
+            
+            if bulletin_id in bulletin_list:
+                return self._show_full_bulletin(context, bulletin_id)
+            else:
+                return PluginResponse(
+                    text=f"Bulletin #{bulletin_id} not in current list.\n\n{self._get_reading_menu()}",
+                    continue_session=True,
+                    session_data=context.session_data
+                )
+        
+        except ValueError:
+            # Invalid input
+            return PluginResponse(
+                text=f"Invalid selection '{user_input}'. {self._get_reading_menu()}",
+                continue_session=True,
+                session_data=context.session_data
+            )
     
     def _handle_searching(self, context: PluginContext, user_input: str) -> PluginResponse:
         """Handle bulletin search"""
