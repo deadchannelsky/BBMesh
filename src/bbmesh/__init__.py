@@ -6,7 +6,7 @@ classic BBS systems of the early computing era. Provides an interactive,
 menu-driven interface accessible through Meshtastic radio nodes.
 """
 
-__version__ = "0.1.0"
+__version__ = "0.2.0-beta.1"
 __author__ = "BBMesh Team"
 __email__ = "contact@bbmesh.dev"
 
