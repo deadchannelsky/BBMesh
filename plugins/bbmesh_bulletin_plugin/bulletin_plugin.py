@@ -334,27 +334,14 @@ class BulletinBoardPlugin(InteractivePlugin):
     
     def start_session(self, context: PluginContext) -> PluginResponse:
         """Start a new bulletin board session"""
-        # Show welcome message and main bulletin menu
-        welcome_text = (
-            "Bulletin Board\n\n"
-            "1. Post\n"
-            "2. Read\n"
-            "3. Browse\n"
-            "4. Search\n"
-            "5. Stats\n"
-            "9. Help\n"
-            "0. Exit\n\n"
-            "Choice:"
-        )
-        
         session_data = {
             f"{self.name}_active": True,
             f"{self.name}_state": "main_menu",
             f"{self.name}_page": 0
         }
-        
+
         return PluginResponse(
-            text=welcome_text,
+            text=self._get_main_menu(),
             continue_session=True,
             session_data=session_data
         )
@@ -400,19 +387,14 @@ class BulletinBoardPlugin(InteractivePlugin):
             # Start posting process
             categories = self.storage.get_categories()
             if not categories:
-                categories = [{"name": cat["name"], "description": cat["description"]} 
+                categories = [{"name": cat["name"], "description": cat["description"]}
                              for cat in self.categories]
-            
-            category_text = "Post Bulletin\n\nCategory:\n\n"
-            for i, cat in enumerate(categories, 1):
-                category_text += f"{i}. {cat['name']}\n"
-            category_text += "\nNumber:"
-            
+
             context.session_data[f"{self.name}_state"] = "posting_category"
             context.session_data[f"{self.name}_categories"] = categories
-            
+
             return PluginResponse(
-                text=category_text,
+                text=self._get_posting_category_menu(categories),
                 continue_session=True,
                 session_data=context.session_data
             )
@@ -448,10 +430,11 @@ class BulletinBoardPlugin(InteractivePlugin):
                 text="Thanks! 73!",
                 continue_session=False
             )
-        
+
         else:
+            # Invalid input - resend the menu in case it was lost
             return PluginResponse(
-                text="Invalid. Enter 1-5, 9, or 0.",
+                text=self._get_main_menu(),
                 continue_session=True,
                 session_data=context.session_data
             )
@@ -459,28 +442,30 @@ class BulletinBoardPlugin(InteractivePlugin):
     def _handle_posting_category(self, context: PluginContext, user_input: str) -> PluginResponse:
         """Handle category selection for posting"""
         categories = context.session_data.get(f"{self.name}_categories", [])
-        
+
         try:
             choice = int(user_input) - 1
             if 0 <= choice < len(categories):
                 selected_category = categories[choice]["name"]
                 context.session_data[f"{self.name}_selected_category"] = selected_category
                 context.session_data[f"{self.name}_state"] = "posting_subject"
-                
+
                 return PluginResponse(
                     text=f"To: {selected_category}\n\nSubject:",
                     continue_session=True,
                     session_data=context.session_data
                 )
             else:
+                # Invalid category number - resend the menu
                 return PluginResponse(
-                    text="Invalid number:",
+                    text=self._get_posting_category_menu(categories),
                     continue_session=True,
                     session_data=context.session_data
                 )
         except ValueError:
+            # Non-numeric input - resend the menu
             return PluginResponse(
-                text="Enter valid number:",
+                text=self._get_posting_category_menu(categories),
                 continue_session=True,
                 session_data=context.session_data
             )
@@ -641,10 +626,32 @@ class BulletinBoardPlugin(InteractivePlugin):
             continue_session=True
         )
     
+    def _get_main_menu(self) -> str:
+        """Get main menu display text"""
+        return (
+            "Bulletin Board\n\n"
+            "1. Post\n"
+            "2. Read\n"
+            "3. Browse\n"
+            "4. Search\n"
+            "5. Stats\n"
+            "9. Help\n"
+            "0. Exit\n\n"
+            "Choice:"
+        )
+
+    def _get_posting_category_menu(self, categories: List[Dict[str, Any]]) -> str:
+        """Get category selection menu for posting"""
+        text = "Post Bulletin\n\nCategory:\n\n"
+        for i, cat in enumerate(categories, 1):
+            text += f"{i}. {cat['name']}\n"
+        text += "\nNumber:"
+        return text
+
     def _get_abbreviated_menu(self) -> str:
         """Get inline abbreviated menu for post-function display"""
         return "\n1.Read  2.Post  3.Browse  4.Search  9.Help  0.Exit:"
-    
+
     def _get_reading_menu(self) -> str:
         """Get inline menu for bulletin reading context"""
         return "# to read, 8.Menu, 9.Help, 0.Exit:"
@@ -704,19 +711,8 @@ class BulletinBoardPlugin(InteractivePlugin):
         if user_input == "8":
             # Return to main menu
             context.session_data[f"{self.name}_state"] = "main_menu"
-            welcome_text = (
-                "Bulletin Board\n\n"
-                "1. Post\n"
-                "2. Read\n"
-                "3. Browse\n"
-                "4. Search\n"
-                "5. Stats\n"
-                "9. Help\n"
-                "0. Exit\n\n"
-                "Choice:"
-            )
             return PluginResponse(
-                text=welcome_text,
+                text=self._get_main_menu(),
                 continue_session=True,
                 session_data=context.session_data
             )
@@ -747,9 +743,9 @@ class BulletinBoardPlugin(InteractivePlugin):
                 )
         
         except ValueError:
-            # Invalid input
+            # Invalid input - resend the menu in case it was lost
             return PluginResponse(
-                text=f"Invalid selection '{user_input}'. {self._get_reading_menu()}",
+                text=f"Please enter a valid selection.\n\n{self._get_reading_menu()}",
                 continue_session=True,
                 session_data=context.session_data
             )
