@@ -42,6 +42,9 @@ plugins:
   - help
   - time
   - ping
+  - calculator
+  - number_guess
+  - node_lookup
   - bulletin_system
   plugin_timeout: 30
 database:
