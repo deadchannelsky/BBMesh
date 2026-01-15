@@ -708,15 +708,57 @@ class MeshtasticInterface:
                 else:
                     self.logger.info(f"Direct message only mode enabled - Local node ID: {self.local_node_id}")
                     self.logger.info("Will ONLY process direct messages sent to this node")
-                    
+
                 # Log BROADCAST_ADDR for debugging
                 self.logger.debug(f"BROADCAST_ADDR constant value: {BROADCAST_ADDR} (type: {type(BROADCAST_ADDR)})")
             else:
                 self.logger.info(f"Processing both direct messages and broadcasts on channels: {self.config.monitored_channels}")
-                
+
         except Exception as e:
             self.logger.error(f"Error validating direct message configuration: {e}")
-    
+
+    def _cleanup_port_locks(self) -> None:
+        """
+        Clean up stale serial port lock files when disconnecting.
+        This prevents "Device or resource busy" errors on subsequent restarts.
+        """
+        try:
+            port = self.config.serial.port
+            port_basename = os.path.basename(port)
+
+            # Only proceed if configured to remove stale locks
+            if not self.config.serial.remove_stale_locks:
+                self.logger.debug("Stale lock cleanup disabled in configuration")
+                return
+
+            # Potential lock file locations (varies by system)
+            lock_file_paths = [
+                f"/var/lock/LCK..{port_basename}",
+                f"/tmp/LCK..{port_basename}",
+                f"/var/run/lock/LCK..{port_basename}"
+            ]
+
+            cleaned_any = False
+            for lock_file in lock_file_paths:
+                if os.path.exists(lock_file):
+                    try:
+                        self.logger.info(f"Removing stale lock file during disconnect: {lock_file}")
+                        subprocess.run(["sudo", "rm", lock_file], check=True, timeout=5)
+                        self.logger.info(f"✓ Removed lock file: {lock_file}")
+                        cleaned_any = True
+                    except subprocess.CalledProcessError as e:
+                        self.logger.warning(f"Could not remove lock file {lock_file}: {e}")
+                    except Exception as e:
+                        self.logger.debug(f"Error removing lock file {lock_file}: {e}")
+
+            if cleaned_any:
+                # Give the system a moment to fully release the port
+                time.sleep(0.5)
+                self.logger.info("Port locks cleaned up - device should be available for restart")
+
+        except Exception as e:
+            self.logger.warning(f"Error during port lock cleanup: {e}")
+
     def disconnect(self) -> None:
         """Disconnect from the Meshtastic node"""
         with self._connection_lock:
@@ -725,6 +767,8 @@ class MeshtasticInterface:
                     self.logger.info("Disconnecting from Meshtastic node...")
                     pub.unsubscribe(self._on_receive, "meshtastic.receive")
                     self.interface.close()
+                    # Give the OS time to release the exclusive lock on the serial port
+                    time.sleep(0.1)
                     self.connected = False
                     self.interface = None
                     self.logger.info("Successfully disconnected from Meshtastic node")
@@ -733,6 +777,9 @@ class MeshtasticInterface:
                     # Force cleanup even if disconnect fails
                     self.connected = False
                     self.interface = None
+                finally:
+                    # Always clean up port locks to prevent restart failures
+                    self._cleanup_port_locks()
             else:
                 self.logger.debug("Disconnect called but no interface - already disconnected")
     
