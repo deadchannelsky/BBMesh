@@ -331,9 +331,13 @@ class MessageHandler:
         menu_result = self.menu_system.process_menu_input(session.current_menu, user_input)
         
         # Handle the menu result
-        if menu_result["action"] in ["error", "show_message"]:
+        if menu_result["action"] == "show_current_menu":
+            # Invalid input - resend the current menu
+            menu_text = self.menu_system.get_menu_display(session.current_menu)
+            self._send_response(message, session, menu_text)
+        elif menu_result["action"] in ["error", "show_message"]:
             self._send_response(message, session, menu_result["message"])
-        elif menu_result["action"] in ["show_help", "show_status", "show_time", "show_mesh_info", 
+        elif menu_result["action"] in ["show_help", "show_status", "show_time", "show_mesh_info",
                                       "goto_menu", "run_plugin"]:
             # Handle the menu action
             self._handle_menu_action(message, session, menu_result)

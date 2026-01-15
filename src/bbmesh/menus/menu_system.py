@@ -234,14 +234,14 @@ class MenuSystem:
         
         if not selected_item:
             return {
-                "action": "show_message",
-                "message": f"Invalid option '{user_input}'. Send the menu number or name."
+                "action": "show_current_menu",
+                "message": "Please enter a valid option."
             }
         
         if not selected_item.enabled:
             return {
-                "action": "show_message",
-                "message": "This option is currently disabled."
+                "action": "show_current_menu",
+                "message": "That option is currently disabled."
             }
         
         # Return the item's action
