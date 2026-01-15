@@ -850,12 +850,7 @@ class MeshtasticInterface:
                 else:
                     self.logger.error(f"📤 Part {i+1}/{len(parts)} failed to send")
                     break  # Stop sending if any part fails
-                
-                # Apply delay between parts (except for the last part)
-                if i < len(parts) - 1:
-                    self.logger.info(f"⏱️ Applying inter-part delay: {self.message_send_delay}s")
-                    time.sleep(self.message_send_delay)
-                    
+
             except Exception as e:
                 self.logger.error(f"📤 Error sending part {i+1}/{len(parts)}: {e}")
                 break
