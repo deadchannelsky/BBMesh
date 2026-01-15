@@ -647,7 +647,7 @@ class BulletinBoardPlugin(InteractivePlugin):
     
     def _get_reading_menu(self) -> str:
         """Get inline menu for bulletin reading context"""
-        return "# to read, R)efresh, M)ain menu, 0)Exit:"
+        return "# to read, 8.Menu, 9.Help, 0.Exit:"
     
     def _show_help(self, context: PluginContext) -> PluginResponse:
         """Show help information"""
@@ -699,13 +699,9 @@ class BulletinBoardPlugin(InteractivePlugin):
     def _handle_reading_bulletins(self, context: PluginContext, user_input: str) -> PluginResponse:
         """Handle bulletin reading menu input"""
         user_input = user_input.strip().upper()
-        
+
         # Handle menu commands
-        if user_input == "R":
-            # Refresh bulletin list
-            return self._show_recent_bulletins(context)
-        
-        elif user_input == "M":
+        if user_input == "8":
             # Return to main menu
             context.session_data[f"{self.name}_state"] = "main_menu"
             welcome_text = (
@@ -724,7 +720,11 @@ class BulletinBoardPlugin(InteractivePlugin):
                 continue_session=True,
                 session_data=context.session_data
             )
-        
+
+        elif user_input == "9":
+            # Show help
+            return self._show_help(context)
+
         elif user_input == "0":
             # Exit plugin
             return PluginResponse(
