@@ -33,11 +33,6 @@ menus:
         title: About BBMesh
         action: show_about
         description: Information about this BBS system
-      '10':
-        title: Bulletin Board
-        action: run_plugin
-        plugin: bulletin_system
-        description: Community bulletin board system
   games:
     title: Games & Entertainment
     description: Fun activities and games
@@ -93,11 +88,6 @@ menus:
         action: goto_menu
         target: main
         description: Return to main menu
-      '9':
-        title: Bulletin Management
-        action: run_plugin
-        plugin: bulletin_admin
-        description: Manage bulletin board system
 settings:
   show_numbers: true
   show_descriptions: false
