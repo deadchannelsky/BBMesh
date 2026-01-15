@@ -643,7 +643,7 @@ class BulletinBoardPlugin(InteractivePlugin):
     
     def _get_abbreviated_menu(self) -> str:
         """Get inline abbreviated menu for post-function display"""
-        return "R)ead, P)ost, B)rowse, S)earch, H)elp, 0)Exit:"
+        return "\n1.Read  2.Post  3.Browse  4.Search  9.Help  0.Exit:"
     
     def _get_reading_menu(self) -> str:
         """Get inline menu for bulletin reading context"""
