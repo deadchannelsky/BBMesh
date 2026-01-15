@@ -375,8 +375,9 @@ class MessageHandler:
             plugin_name = menu_result.get("plugin", "")
             self._execute_plugin(message, session, plugin_name)
         else:
-            # Unknown action
-            self._send_response(message, session, "❌ Unknown menu action. Send MENU for options.")
+            # Unknown action - resend the current menu in case it was lost
+            menu_text = self.menu_system.get_menu_display(session.current_menu)
+            self._send_response(message, session, menu_text)
     
     def _execute_plugin(self, message: MeshMessage, session: UserSession, plugin_name: str) -> None:
         """
