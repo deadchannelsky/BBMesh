@@ -47,7 +47,7 @@ menus:
         title: Number Guessing Game
         action: run_plugin
         plugin: number_guess
-        description: Guess the number between 1-100
+        description: Escalating difficulty game - start at 1-5
       2:
         title: Word Game
         action: run_plugin
