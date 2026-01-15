@@ -114,85 +114,118 @@ class CalculatorPlugin(SimpleResponsePlugin):
 
 
 class NumberGuessPlugin(InteractivePlugin):
-    """Number guessing game plugin"""
-    
+    """Number guessing game - escalating difficulty"""
+
+    def _get_difficulty_range(self, level: int) -> tuple:
+        """Get min/max for difficulty level (1-indexed)"""
+        ranges = {
+            1: (1, 5),
+            2: (1, 7),
+            3: (1, 10),
+            4: (1, 15),
+            5: (1, 20),
+        }
+        return ranges.get(level, (1, 20))
+
     def start_session(self, context: PluginContext) -> PluginResponse:
-        min_num = self.config.get("min_number", 1)
-        max_num = self.config.get("max_number", 100)
-        max_attempts = self.config.get("max_attempts", 7)
-        
+        """Start a new game at level 1"""
+        min_num, max_num = self._get_difficulty_range(1)
         target_number = random.randint(min_num, max_num)
-        
+
         session_data = {
             f"{self.name}_active": True,
             f"{self.name}_target": target_number,
             f"{self.name}_attempts": 0,
-            f"{self.name}_max_attempts": max_attempts,
+            f"{self.name}_level": 1,
             f"{self.name}_min": min_num,
             f"{self.name}_max": max_num
         }
-        
+
         response_text = (
-            f"Number Guessing Game!\n"
-            f"I'm thinking of a number between {min_num} and {max_num}.\n"
-            f"You have {max_attempts} attempts. What's your guess?"
+            f"Guess My Number!\n\n"
+            f"Level 1: I'm thinking of a number 1-5\n"
+            f"You have 3 tries. What's your guess?"
         )
-        
+
         return PluginResponse(
             text=response_text,
             continue_session=True,
             session_data=session_data
         )
-    
+
     def continue_session(self, context: PluginContext) -> PluginResponse:
         target = context.session_data.get(f"{self.name}_target")
         attempts = context.session_data.get(f"{self.name}_attempts", 0)
-        max_attempts = context.session_data.get(f"{self.name}_max_attempts", 7)
+        level = context.session_data.get(f"{self.name}_level", 1)
         min_num = context.session_data.get(f"{self.name}_min", 1)
-        max_num = context.session_data.get(f"{self.name}_max", 100)
-        
+        max_num = context.session_data.get(f"{self.name}_max", 5)
+
         # Parse user's guess
         text = context.message.text.strip()
-        
+
         try:
             guess = int(text)
         except ValueError:
             return PluginResponse(
-                text=f"Please enter a number between {min_num} and {max_num}",
+                text=f"Enter a number between {min_num}-{max_num}:",
                 continue_session=True,
                 session_data=context.session_data
             )
-        
+
         attempts += 1
         context.session_data[f"{self.name}_attempts"] = attempts
-        
+
         # Check the guess
         if guess == target:
-            # Correct guess!
+            # Correct! Move to next level or end game
+            if level < 5:
+                # Go to next level
+                next_level = level + 1
+                next_min, next_max = self._get_difficulty_range(next_level)
+                next_target = random.randint(next_min, next_max)
+
+                context.session_data[f"{self.name}_target"] = next_target
+                context.session_data[f"{self.name}_attempts"] = 0
+                context.session_data[f"{self.name}_level"] = next_level
+                context.session_data[f"{self.name}_min"] = next_min
+                context.session_data[f"{self.name}_max"] = next_max
+
+                response_text = (
+                    f"Correct! You got it in {attempts} tries!\n\n"
+                    f"Level {next_level}: Now guess between {next_min}-{next_max}"
+                )
+
+                return PluginResponse(
+                    text=response_text,
+                    continue_session=True,
+                    session_data=context.session_data
+                )
+            else:
+                # Max level reached
+                context.session_data[f"{self.name}_active"] = False
+                return PluginResponse(
+                    text=f"Correct! You beat all 5 levels!\nYou're a Number Master! 🏆",
+                    continue_session=False
+                )
+
+        elif attempts >= 3:
+            # Out of attempts - back to main menu
             context.session_data[f"{self.name}_active"] = False
             return PluginResponse(
-                text=f"Correct! The number was {target}.\nYou got it in {attempts} attempts!",
+                text=f"Nope! The number was {target}.\nBack to the main menu with you!",
                 continue_session=False
             )
-        
-        elif attempts >= max_attempts:
-            # Out of attempts
-            context.session_data[f"{self.name}_active"] = False
-            return PluginResponse(
-                text=f"Game over! The number was {target}.\nBetter luck next time!",
-                continue_session=False
-            )
-        
+
         else:
             # Give hint and continue
             if guess < target:
                 hint = "Too low!"
             else:
                 hint = "Too high!"
-            
-            remaining = max_attempts - attempts
-            response_text = f"{hint} {remaining} attempts left. Try again:"
-            
+
+            remaining = 3 - attempts
+            response_text = f"{hint} {remaining} tries left:"
+
             return PluginResponse(
                 text=response_text,
                 continue_session=True,
