@@ -29,6 +29,11 @@ menus:
         action: goto_menu
         target: utilities
         description: Useful tools and calculators
+      7:
+        title: AskAI
+        action: run_plugin
+        plugin: askai
+        description: Ask questions to local AI assistant
       9:
         title: About BBMesh
         action: show_about

@@ -100,6 +100,15 @@ plugins:
     show_author_info: true
     max_posts_per_hour: 5
     max_posts_per_day: 20
+  askai:
+    enabled: true
+    description: Ask questions to local AI assistant
+    timeout: 60
+    model: llama2
+    ollama_endpoint: http://localhost:11434/api/generate
+    ollama_timeout: 30
+    max_question_length: 200
+    response_prefix: "🤖 "
 global:
   plugin_timeout: 30
   max_concurrent_sessions: 10

@@ -9,6 +9,7 @@ from datetime import datetime
 from typing import Dict, Any
 
 from .base import SimpleResponsePlugin, InteractivePlugin, PluginContext, PluginResponse
+from .askai import AskAIPlugin
 
 
 class WelcomePlugin(SimpleResponsePlugin):
@@ -264,4 +265,5 @@ BUILTIN_PLUGINS = {
     "calculator": CalculatorPlugin,
     "number_guess": NumberGuessPlugin,
     "node_lookup": NodeLookupPlugin,
+    "askai": AskAIPlugin,
 }

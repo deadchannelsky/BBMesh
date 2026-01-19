@@ -45,6 +45,7 @@ plugins:
   - calculator
   - number_guess
   - node_lookup
+  - askai
   plugin_timeout: 30
 database:
   type: sqlite
