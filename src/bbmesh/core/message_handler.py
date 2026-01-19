@@ -4,6 +4,8 @@ Message handling and user session management for BBMesh
 
 import time
 import re
+import yaml
+from pathlib import Path
 from typing import Dict, List, Optional, Set, Any
 from dataclasses import dataclass
 from datetime import datetime, timedelta
@@ -116,18 +118,57 @@ class MessageHandler:
     def _initialize_plugins(self) -> None:
         """Initialize available plugins"""
         try:
+            # Load plugin-specific configurations from plugins.yaml
+            plugin_configs = self._load_plugin_configs()
+
             for plugin_name, plugin_class in BUILTIN_PLUGINS.items():
                 if plugin_name in self.config.plugins.enabled_plugins:
-                    plugin_config = {"enabled": True, "timeout": self.config.plugins.plugin_timeout}
+                    # Start with default config
+                    plugin_config = {
+                        "enabled": True,
+                        "timeout": self.config.plugins.plugin_timeout
+                    }
+
+                    # Merge in plugin-specific config from plugins.yaml
+                    if plugin_name in plugin_configs:
+                        plugin_config.update(plugin_configs[plugin_name])
+
                     plugin_instance = plugin_class(plugin_name, plugin_config)
                     plugin_instance.initialize()
                     self.plugins[plugin_name] = plugin_instance
                     self.logger.info(f"Initialized plugin: {plugin_name}")
-            
+
             self.logger.info(f"Loaded {len(self.plugins)} plugins")
         except Exception as e:
             self.logger.error(f"Error initializing plugins: {e}")
-    
+
+    def _load_plugin_configs(self) -> Dict[str, Dict[str, Any]]:
+        """Load plugin configurations from plugins.yaml"""
+        try:
+            config_file = self.config.plugins.plugin_config_file
+            config_path = Path(config_file)
+
+            if not config_path.is_absolute():
+                # Make path relative to project root
+                config_path = Path.cwd() / config_file
+
+            if not config_path.exists():
+                self.logger.warning(f"Plugin config file not found: {config_path}")
+                return {}
+
+            with open(config_path, 'r') as f:
+                data = yaml.safe_load(f) or {}
+
+            # Extract the 'plugins' section
+            plugins_config = data.get('plugins', {})
+            self.logger.debug(f"Loaded configuration for {len(plugins_config)} plugins from {config_path}")
+
+            return plugins_config
+
+        except Exception as e:
+            self.logger.error(f"Error loading plugin configs: {e}")
+            return {}
+
     def _validate_menu_system(self) -> None:
         """Validate menu system configuration"""
         try:
