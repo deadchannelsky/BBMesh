@@ -235,25 +235,38 @@ class NumberGuessPlugin(InteractivePlugin):
 
 class NodeLookupPlugin(SimpleResponsePlugin):
     """Node information lookup plugin"""
-    
+
     def generate_response(self, context: PluginContext) -> str:
         # This would typically interface with the mesh network
         # For now, return basic info about the sender
         show_signal = self.config.get("show_signal_info", True)
-        
+
         info_parts = [
             f"Node Info: {context.user_name}",
             f"ID: {context.user_id}",
             f"Channel: {context.channel}"
         ]
-        
+
         if show_signal and hasattr(context.message, 'snr'):
             info_parts.extend([
                 f"SNR: {context.message.snr:.1f}dB",
                 f"RSSI: {context.message.rssi}dBm"
             ])
-        
+
         return "\n".join(info_parts)
+
+
+class StatusPlugin(SimpleResponsePlugin):
+    """System status and basic information plugin"""
+
+    def generate_response(self, context: PluginContext) -> str:
+        return (
+            f"📊 BBMesh Status\n"
+            f"User: {context.user_name}\n"
+            f"Node ID: {context.user_id}\n"
+            f"Channel: {context.channel}\n"
+            f"System: Online"
+        )
 
 
 # Plugin registry - maps plugin names to classes
@@ -262,6 +275,7 @@ BUILTIN_PLUGINS = {
     "help": HelpPlugin,
     "time": TimePlugin,
     "ping": PingPlugin,
+    "status": StatusPlugin,
     "calculator": CalculatorPlugin,
     "number_guess": NumberGuessPlugin,
     "node_lookup": NodeLookupPlugin,

@@ -42,6 +42,7 @@ plugins:
   - help
   - time
   - ping
+  - status
   - calculator
   - number_guess
   - node_lookup

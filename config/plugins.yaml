@@ -18,6 +18,10 @@ plugins:
     description: Network connectivity test
     include_signal_info: true
     timeout: 5
+  status:
+    enabled: true
+    description: System status and basic information
+    timeout: 5
   number_guess:
     enabled: true
     description: Number guessing game with escalating difficulty
