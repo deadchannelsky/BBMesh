@@ -1,14 +1,6 @@
 Welcome to BBMesh BBS!
-
 A bulletin board system for the Meshtastic mesh network.
-Experience the nostalgia of classic BBS systems with modern mesh networking.
-
-📻 Connect via your local Meshtastic node
-🌐 Explore games, utilities, and information
-💬 Chat with other mesh network users
-📊 Monitor network status and activity
-
 For help, send: HELP
 For main menu, send: MENU
 
-Enjoy your stay on the mesh!
+Enjoy your stay in the shared consensual illusion of the Matrix.

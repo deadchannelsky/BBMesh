@@ -1,7 +1,7 @@
 meshtastic:
   serial:
-    port: /dev/ttyUSB0
-    baudrate: 115200
+    port: /dev/ttyACM0
+    baudrate: 921600
     timeout: 1.0
   node_id: null
   monitored_channels:
