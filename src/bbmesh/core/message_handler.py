@@ -325,31 +325,6 @@ class MessageHandler:
         
         self._send_response(message, session, full_response)
     
-    def _handle_ping(self, message: MeshMessage, session: UserSession) -> None:
-        """Handle ping requests"""
-        response = f"🏓 Pong! BBMesh is alive. Signal: {message.snr:.1f}dB SNR, {message.rssi}dBm RSSI"
-        self._send_response(message, session, response)
-    
-    def _handle_status(self, message: MeshMessage, session: UserSession) -> None:
-        """Handle status requests"""
-        mesh_info = self.mesh_interface.get_mesh_info()
-        uptime = datetime.now() - self.stats["start_time"]
-        
-        status_text = (
-            f"📊 System Status:\n"
-            f"Uptime: {uptime.days}d {uptime.seconds//3600}h\n"
-            f"Messages: {self.stats['total_messages']}\n"
-            f"Sessions: {len(self.active_sessions)}\n"
-            f"Mesh Nodes: {mesh_info.get('node_count', 0)}"
-        )
-        self._send_response(message, session, status_text)
-    
-    def _handle_time(self, message: MeshMessage, session: UserSession) -> None:
-        """Handle time requests"""
-        now = datetime.now()
-        time_text = f"🕒 Current time: {now.strftime('%Y-%m-%d %H:%M:%S')}"
-        self._send_response(message, session, time_text)
-    
     def _handle_direct_message(self, message: MeshMessage, session: UserSession) -> None:
         """Handle direct messages"""
         user_input = message.text.strip()
@@ -384,22 +359,25 @@ class MessageHandler:
     def _handle_menu_action(self, message: MeshMessage, session: UserSession, menu_result: Dict[str, Any]) -> None:
         """
         Handle menu action based on MenuSystem result
-        
+
         Args:
             message: Original message
             session: User session
             menu_result: Result from MenuSystem.process_menu_input()
         """
         action = menu_result["action"]
-        
-        if action == "show_help":
-            self._handle_help_request(message, session)
-        elif action == "show_status":
-            self._handle_status(message, session)
-        elif action == "show_time":
-            self._handle_time(message, session)
-        elif action == "show_mesh_info":
-            self._handle_mesh_info(message, session)
+
+        # Map menu actions to plugins
+        action_to_plugin = {
+            "show_help": "help",
+            "show_time": "time",
+            "show_status": "status",
+            "show_mesh_info": "node_lookup",
+        }
+
+        if action in action_to_plugin:
+            plugin_name = action_to_plugin[action]
+            self._execute_plugin(message, session, plugin_name)
         elif action == "goto_menu":
             # Navigate to different menu
             target_menu = menu_result.get("target", "main")
@@ -485,19 +463,6 @@ class MessageHandler:
         welcome_parts.append("Send HELP for commands or MENU for main menu.")
         
         return "\n\n".join(welcome_parts)
-    
-    def _handle_mesh_info(self, message: MeshMessage, session: UserSession) -> None:
-        """Handle mesh network info requests"""
-        mesh_info = self.mesh_interface.get_mesh_info()
-        
-        info_text = (
-            f"🌐 Mesh Network Info:\n"
-            f"Local Node: {mesh_info.get('local_node_id', 'Unknown')}\n"
-            f"Connected Nodes: {mesh_info.get('node_count', 0)}\n"
-            f"Channels: {len(mesh_info.get('monitored_channels', []))}\n"
-            f"Status: {'Connected' if mesh_info.get('connected') else 'Disconnected'}"
-        )
-        self._send_response(message, session, info_text)
     
     def _send_response(self, message: MeshMessage, session: UserSession, 
                       response_text: str) -> None:
