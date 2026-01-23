@@ -254,12 +254,6 @@ class MessageHandler:
             self._handle_help_request(message, session)
         elif self._is_menu_request(text):
             self._handle_menu_request(message, session)
-        elif text in ["ping", "test"]:
-            self._handle_ping(message, session)
-        elif text in ["status", "info"]:
-            self._handle_status(message, session)
-        elif text in ["time", "date"]:
-            self._handle_time(message, session)
         elif message.is_direct:
             # Direct message - could be menu navigation or general response
             self._handle_direct_message(message, session)
