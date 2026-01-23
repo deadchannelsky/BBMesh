@@ -49,16 +49,6 @@ menus:
         plugin: number_guess
         description: Escalating difficulty game - start at 1-5
       2:
-        title: Word Game
-        action: run_plugin
-        plugin: word_game
-        description: Word association and puzzles
-      3:
-        title: Trivia
-        action: run_plugin
-        plugin: trivia
-        description: Test your knowledge
-      8:
         title: Back to Main Menu
         action: goto_menu
         target: main
@@ -74,21 +64,11 @@ menus:
         plugin: calculator
         description: Basic calculator functions
       2:
-        title: Unit Converter
-        action: run_plugin
-        plugin: unit_converter
-        description: Convert between different units
-      3:
-        title: Weather Info
-        action: run_plugin
-        plugin: weather
-        description: Current weather information
-      4:
         title: Node Lookup
         action: run_plugin
         plugin: node_lookup
         description: Look up information about mesh nodes
-      8:
+      3:
         title: Back to Main Menu
         action: goto_menu
         target: main
