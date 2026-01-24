@@ -237,7 +237,7 @@ class MessageHandler:
     def _process_message(self, message: MeshMessage) -> None:
         """
         Process a message and generate appropriate response
-        
+
         Args:
             message: Message to process
         """
@@ -245,10 +245,21 @@ class MessageHandler:
         session = self._get_or_create_session(message)
         session.last_activity = datetime.now()
         session.message_count += 1
-        
+
+        # CRITICAL: Check for active plugin sessions FIRST
+        # If a plugin is active, it owns ALL input - no BBS command parsing
+        if message.is_direct:
+            for plugin_name in self.plugins:
+                plugin_session_data = session.context.get(f"plugin_{plugin_name}", {})
+                if plugin_session_data.get(f"{plugin_name}_active"):
+                    self.logger.info(f"[ACTIVE PLUGIN] Routing all input to {plugin_name}")
+                    self._execute_plugin(message, session, plugin_name)
+                    return
+
+        # No active plugin - process BBS commands
         # Clean and normalize message text
         text = message.text.strip().lower()
-        
+
         # Handle different types of commands/messages
         if self._is_help_request(text):
             self._handle_help_request(message, session)
