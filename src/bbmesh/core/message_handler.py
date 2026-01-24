@@ -337,12 +337,13 @@ class MessageHandler:
         for plugin_name in self.plugins:
             plugin_session_data = session.context.get(f"plugin_{plugin_name}", {})
             if plugin_session_data.get(f"{plugin_name}_active"):
-                self.logger.debug(f"Routing message to active plugin: {plugin_name} with session data: {plugin_session_data}")
+                self.logger.info(f"[PLUGIN ROUTING] Message to active plugin: {plugin_name}")
+                self.logger.info(f"[PLUGIN SESSION] {plugin_name}_active={plugin_session_data.get(f'{plugin_name}_active')}, {plugin_name}_state={plugin_session_data.get(f'{plugin_name}_state')}")
                 self._execute_plugin(message, session, plugin_name)
                 return
 
-        # Debug: log what plugins are available
-        self.logger.debug(f"No active plugins. Available plugins: {list(self.plugins.keys())}, Session context: {session.context}")
+        # No active plugin - log session state
+        self.logger.info(f"[NO ACTIVE PLUGIN] Available: {list(self.plugins.keys())}, Context keys: {list(session.context.keys())}")
         
         # No active plugin - process menu input through MenuSystem
         menu_result = self.menu_system.process_menu_input(session.current_menu, user_input)

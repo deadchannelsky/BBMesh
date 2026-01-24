@@ -82,11 +82,13 @@ class TradeWarsPlugin(InteractivePlugin):
     def start_session(self, context: PluginContext) -> PluginResponse:
         """Start new game session or continue existing"""
         try:
+            self.logger.info(f"[TRADEWARS START_SESSION] Node: {context.user_id}")
             node_id = context.user_id
             player = self.storage.get_player_by_node_id(node_id)
 
             if player is None:
                 # New player - start registration
+                self.logger.info(f"[TRADEWARS] New player, starting registration")
                 return self._handle_registration_start(context)
             else:
                 # Returning player - show main view
@@ -106,9 +108,13 @@ class TradeWarsPlugin(InteractivePlugin):
             state = context.session_data.get(f"{self.name}_state", "SECTOR_VIEW")
             user_input = context.message.text.strip().upper()
 
+            self.logger.info(f"[TRADEWARS CONTINUE_SESSION] State: {state}, Input: {user_input}")
+            self.logger.info(f"[TRADEWARS SESSION_DATA] Keys: {list(context.session_data.keys())}")
+
             # During registration, we don't have a player_id yet
             if state == "REGISTRATION":
                 # Handle registration flow (no player_id required)
+                self.logger.info(f"[TRADEWARS] In REGISTRATION state, handling confirm")
                 return self._handle_registration_confirm(context, None, user_input)
 
             # For other states, player_id is required
@@ -148,6 +154,9 @@ class TradeWarsPlugin(InteractivePlugin):
         session_data = context.session_data.copy()
         session_data[f"{self.name}_active"] = True
         session_data[f"{self.name}_state"] = "REGISTRATION"
+
+        self.logger.info(f"[TRADEWARS REGISTRATION_START] Returning session_data with active=True, state=REGISTRATION")
+        self.logger.info(f"[TRADEWARS REGISTRATION_START] Session data: {session_data}")
 
         return PluginResponse(
             text=self.formatter.registration_prompt(),
