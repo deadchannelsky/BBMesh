@@ -48,7 +48,7 @@ class ServerConfig:
     welcome_message: str = "Welcome to BBMesh BBS!"
     motd_file: Optional[str] = "config/motd.txt"
     max_message_length: int = 200
-    session_timeout: int = 300  # seconds
+    session_timeout: int = 1800  # seconds (30 minutes - allows for strategic gameplay pauses)
     rate_limit_messages: int = 10
     rate_limit_window: int = 60  # seconds
     message_send_delay: float = 1.0  # seconds

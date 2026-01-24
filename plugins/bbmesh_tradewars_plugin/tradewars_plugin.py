@@ -377,7 +377,7 @@ class TradeWarsPlugin(InteractivePlugin):
                 session_data=session_data
             )
 
-        elif user_input == "H":
+        elif user_input in ["H", "?"]:
             # Help
             return PluginResponse(
                 text=self.formatter.help_text(),
