@@ -328,14 +328,21 @@ class MessageHandler:
     def _handle_direct_message(self, message: MeshMessage, session: UserSession) -> None:
         """Handle direct messages"""
         user_input = message.text.strip()
-        
+
+        # Ensure session context is initialized
+        if session.context is None:
+            session.context = {}
+
         # Check for active plugin sessions first - route to plugin if one is active
         for plugin_name in self.plugins:
             plugin_session_data = session.context.get(f"plugin_{plugin_name}", {})
             if plugin_session_data.get(f"{plugin_name}_active"):
-                self.logger.debug(f"Routing message to active plugin: {plugin_name}")
+                self.logger.debug(f"Routing message to active plugin: {plugin_name} with session data: {plugin_session_data}")
                 self._execute_plugin(message, session, plugin_name)
                 return
+
+        # Debug: log what plugins are available
+        self.logger.debug(f"No active plugins. Available plugins: {list(self.plugins.keys())}, Session context: {session.context}")
         
         # No active plugin - process menu input through MenuSystem
         menu_result = self.menu_system.process_menu_input(session.current_menu, user_input)
@@ -429,7 +436,8 @@ class MessageHandler:
             # Update session data if plugin returned session data
             if response.session_data is not None:
                 session.context[f"plugin_{plugin_name}"] = response.session_data
-            
+                self.logger.debug(f"Saved plugin session data for {plugin_name}: active={response.session_data.get(f'{plugin_name}_active')}, state={response.session_data.get(f'{plugin_name}_state')}")
+
             # Send response
             self._send_response(message, session, response.text)
             
