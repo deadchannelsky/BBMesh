@@ -10,6 +10,7 @@ from typing import Dict, Any
 
 from .base import SimpleResponsePlugin, InteractivePlugin, PluginContext, PluginResponse
 from .askai import AskAIPlugin
+from .tradewars_plugin import TradeWarsPlugin
 
 
 class WelcomePlugin(SimpleResponsePlugin):
@@ -280,4 +281,5 @@ BUILTIN_PLUGINS = {
     "number_guess": NumberGuessPlugin,
     "node_lookup": NodeLookupPlugin,
     "askai": AskAIPlugin,
+    "tradewars": TradeWarsPlugin,
 }
