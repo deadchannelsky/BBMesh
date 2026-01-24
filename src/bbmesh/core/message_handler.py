@@ -7,7 +7,7 @@ import re
 import yaml
 from pathlib import Path
 from typing import Dict, List, Optional, Set, Any
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from collections import defaultdict
 
@@ -27,15 +27,9 @@ class UserSession:
     channel: int
     last_activity: datetime
     current_menu: str = "main"
-    menu_history: List[str] = None
-    context: Dict[str, any] = None
+    menu_history: List[str] = field(default_factory=list)
+    context: Dict[str, any] = field(default_factory=dict)
     message_count: int = 0
-    
-    def __post_init__(self):
-        if self.menu_history is None:
-            self.menu_history = []
-        if self.context is None:
-            self.context = {}
 
 
 class RateLimiter:
