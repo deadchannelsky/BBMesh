@@ -64,7 +64,7 @@ class TradeWarsPluginInstaller:
 
     def backup_config_files(self) -> None:
         """Create backups of configuration files before modification"""
-        config_files = ["plugins.yaml", "menus.yaml"]
+        config_files = ["bbmesh.yaml", "plugins.yaml", "menus.yaml"]
         backup_dir = self.config_dir / "backups"
         backup_dir.mkdir(exist_ok=True)
 
@@ -187,6 +187,32 @@ class TradeWarsPluginInstaller:
 
         print("Menu configuration updated")
 
+    def update_bbmesh_config(self) -> None:
+        """Update main BBMesh configuration to include tradewars in enabled plugins"""
+        bbmesh_config_file = self.config_dir / "bbmesh.yaml"
+
+        with open(bbmesh_config_file, 'r') as f:
+            config = yaml.safe_load(f)
+
+        # Add tradewars to enabled plugins if not already there
+        if 'plugins' not in config:
+            config['plugins'] = {}
+
+        if 'enabled_plugins' not in config['plugins']:
+            config['plugins']['enabled_plugins'] = []
+
+        enabled_plugins = config['plugins']['enabled_plugins']
+
+        if 'tradewars' not in enabled_plugins:
+            enabled_plugins.append('tradewars')
+
+            with open(bbmesh_config_file, 'w') as f:
+                yaml.dump(config, f, default_flow_style=False, sort_keys=False)
+
+            print("Added tradewars to enabled plugins in bbmesh.yaml")
+        else:
+            print("TradeWars already in enabled plugins")
+
     def register_plugin(self) -> None:
         """Register plugin in BBMesh builtin plugins registry"""
         builtin_file = self.plugins_dir / "builtin.py"
@@ -254,6 +280,7 @@ class TradeWarsPluginInstaller:
             print("\nUpdating configurations...")
             self.update_plugins_config()
             self.update_menus_config()
+            self.update_bbmesh_config()
 
             # Register plugin
             print("\nRegistering plugin...")
