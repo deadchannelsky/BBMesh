@@ -108,14 +108,17 @@ class TradeWarsPlugin(InteractivePlugin):
             state = context.session_data.get(f"{self.name}_state", "SECTOR_VIEW")
             user_input = context.message.text.strip().upper()
 
-            self.logger.info(f"[TRADEWARS CONTINUE_SESSION] State: {state}, Input: {user_input}")
-            self.logger.info(f"[TRADEWARS SESSION_DATA] Keys: {list(context.session_data.keys())}")
+            self.logger.info(f"[TRADEWARS CONTINUE_SESSION] START - State: {state}, Input: {user_input}")
+            self.logger.info(f"[TRADEWARS CONTINUE_SESSION] session_data keys: {list(context.session_data.keys())}")
+            self.logger.info(f"[TRADEWARS CONTINUE_SESSION] Full session_data: {context.session_data}")
 
             # During registration, we don't have a player_id yet
             if state == "REGISTRATION":
                 # Handle registration flow (no player_id required)
-                self.logger.info(f"[TRADEWARS] In REGISTRATION state, handling confirm")
-                return self._handle_registration_confirm(context, None, user_input)
+                self.logger.info(f"[TRADEWARS CONTINUE_SESSION] Detected REGISTRATION state, calling _handle_registration_confirm")
+                result = self._handle_registration_confirm(context, None, user_input)
+                self.logger.info(f"[TRADEWARS CONTINUE_SESSION] _handle_registration_confirm returned: text={result.text[:50]}...")
+                return result
 
             # For other states, player_id is required
             player_id = context.session_data.get(f"{self.name}_player_id")
@@ -139,7 +142,9 @@ class TradeWarsPlugin(InteractivePlugin):
             return handler(context, player_id, user_input)
 
         except Exception as e:
-            self.logger.error(f"Error in continue_session: {e}")
+            self.logger.error(f"[TRADEWARS CONTINUE_SESSION] ERROR: {e}", exc_info=True)
+            import traceback
+            self.logger.error(f"[TRADEWARS CONTINUE_SESSION] Traceback: {traceback.format_exc()}")
             return PluginResponse(
                 text=self.formatter.database_error(),
                 continue_session=True,
@@ -167,10 +172,14 @@ class TradeWarsPlugin(InteractivePlugin):
     def _handle_registration_confirm(self, context: PluginContext, player_id: int,
                                      user_input: str) -> PluginResponse:
         """Handle registration confirmation"""
+        self.logger.info(f"[TRADEWARS REG_CONFIRM] Entered with input={user_input}")
         session_data = context.session_data.copy()
+        self.logger.info(f"[TRADEWARS REG_CONFIRM] session_data keys: {list(session_data.keys())}")
 
         # First message - user provides name
-        if f"{self.name}_temp_name" not in session_data:
+        has_temp_name = f"{self.name}_temp_name" in session_data
+        self.logger.info(f"[TRADEWARS REG_CONFIRM] has_temp_name={has_temp_name}")
+        if not has_temp_name:
             # Validate name
             if len(user_input) < 1 or len(user_input) > 8:
                 return PluginResponse(
