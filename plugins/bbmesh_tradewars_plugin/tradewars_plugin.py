@@ -104,17 +104,21 @@ class TradeWarsPlugin(InteractivePlugin):
         """Continue existing game session"""
         try:
             state = context.session_data.get(f"{self.name}_state", "SECTOR_VIEW")
-            player_id = context.session_data.get(f"{self.name}_player_id")
+            user_input = context.message.text.strip().upper()
 
+            # During registration, we don't have a player_id yet
+            if state == "REGISTRATION":
+                # Handle registration flow (no player_id required)
+                return self._handle_registration_confirm(context, None, user_input)
+
+            # For other states, player_id is required
+            player_id = context.session_data.get(f"{self.name}_player_id")
             if not player_id:
                 # Session lost - restart
                 return self.start_session(context)
 
-            user_input = context.message.text.strip().upper()
-
             # Route to appropriate handler based on state
             state_handlers = {
-                "REGISTRATION": self._handle_registration_confirm,
                 "SECTOR_VIEW": self._handle_sector_view_input,
                 "NAVIGATION": self._handle_navigation_input,
                 "IN_PORT": self._handle_port_menu_input,
