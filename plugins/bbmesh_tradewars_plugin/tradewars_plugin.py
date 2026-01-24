@@ -300,6 +300,10 @@ class TradeWarsPlugin(InteractivePlugin):
         """Handle commands in SECTOR_VIEW state"""
         session_data = context.session_data.copy()
 
+        # SCAN/R command - re-display sector view
+        if user_input in ["R", "SCAN"]:
+            return self._handle_sector_view(context, player_id)
+
         if user_input == "M":
             # Show navigation menu
             player = self.storage.get_player_by_id(player_id)
@@ -451,15 +455,10 @@ class TradeWarsPlugin(InteractivePlugin):
                 player_id, turns=new_turns, total_warps=new_warps
             )
 
-            # Return to sector view
+            # Return to sector view with full display
             session_data[f"{self.name}_state"] = "SECTOR_VIEW"
-            updated_ship = self.storage.get_ship_by_player_id(player_id)
-
-            return PluginResponse(
-                text=self.formatter.warped_success(dest_sector, new_turns),
-                continue_session=True,
-                session_data=session_data
-            )
+            session_data[f"{self.name}_current_sector"] = dest_sector
+            return self._handle_sector_view(context, player_id)
 
         except Exception as e:
             self.logger.error(f"Error in execute_warp: {e}")

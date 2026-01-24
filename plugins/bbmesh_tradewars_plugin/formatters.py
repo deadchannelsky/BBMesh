@@ -56,7 +56,7 @@ class MessageFormatter:
             f"Sec{sector_id}[→{connections}]\n"
             f"Port:{'Y' if has_port else 'N'} Ships:{player_ships}\n"
             f"Turns:{turns} Cr:{cred_fmt}\n"
-            f"H=help M=move P=port C=cargo"
+            f"R=scan M=move P=port C=cargo"
         )
         return MessageFormatter.truncate(msg)
 
