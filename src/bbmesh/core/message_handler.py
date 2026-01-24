@@ -412,7 +412,7 @@ class MessageHandler:
     def _execute_plugin(self, message: MeshMessage, session: UserSession, plugin_name: str) -> None:
         """
         Execute a plugin
-        
+
         Args:
             message: Original message
             session: User session
@@ -422,27 +422,31 @@ class MessageHandler:
             response = f"❌ Plugin '{plugin_name}' not available."
             self._send_response(message, session, response)
             return
-        
+
         try:
             plugin = self.plugins[plugin_name]
-            
+
+            # Get session data for this plugin
+            plugin_session_data = session.context.get(f"plugin_{plugin_name}", {})
+            self.logger.info(f"[PLUGIN EXECUTE] {plugin_name}: session_data keys before={list(plugin_session_data.keys())}")
+
             # Create plugin context
             context = PluginContext(
                 user_id=session.user_id,
                 user_name=session.user_name,
                 channel=session.channel,
-                session_data=session.context.get(f"plugin_{plugin_name}", {}),
+                session_data=plugin_session_data,
                 message=message,
                 plugin_config=plugin.config
             )
-            
+
             # Execute plugin
             response = plugin.execute(context)
-            
+
             # Update session data if plugin returned session data
             if response.session_data is not None:
                 session.context[f"plugin_{plugin_name}"] = response.session_data
-                self.logger.debug(f"Saved plugin session data for {plugin_name}: active={response.session_data.get(f'{plugin_name}_active')}, state={response.session_data.get(f'{plugin_name}_state')}")
+                self.logger.info(f"[PLUGIN SAVED] {plugin_name}: active={response.session_data.get(f'{plugin_name}_active')}, state={response.session_data.get(f'{plugin_name}_state')}")
 
             # Send response
             self._send_response(message, session, response.text)

@@ -165,7 +165,13 @@ class InteractivePlugin(BBMeshPlugin):
             # Check for universal exit commands first
             user_input = context.message.text.strip().lower()
             exit_commands = ["exit", "quit", "menu", "bbs", "main", "0"]
-            
+
+            # Debug logging
+            active_key = f"{self.name}_active"
+            is_active = context.session_data.get(active_key)
+            self.logger.info(f"[{self.name.upper()} EXECUTE] session_data keys: {list(context.session_data.keys())}")
+            self.logger.info(f"[{self.name.upper()} EXECUTE] {active_key}={is_active}, user_input={user_input}")
+
             if user_input in exit_commands and context.session_data.get(f"{self.name}_active"):
                 # User wants to exit plugin and return to main BBS
                 self.logger.debug(f"Plugin {self.name} received exit command: {user_input}")
@@ -174,11 +180,13 @@ class InteractivePlugin(BBMeshPlugin):
                     continue_session=False,
                     session_data={}  # Clear plugin session data
                 )
-            
+
             # Check if this is a new session or continuation
             if not context.session_data.get(f"{self.name}_active"):
+                self.logger.info(f"[{self.name.upper()} EXECUTE] Not active, calling start_session()")
                 return self.start_session(context)
             else:
+                self.logger.info(f"[{self.name.upper()} EXECUTE] Active, calling continue_session()")
                 return self.continue_session(context)
         except Exception as e:
             self.logger.error(f"Error in {self.name}: {e}")
