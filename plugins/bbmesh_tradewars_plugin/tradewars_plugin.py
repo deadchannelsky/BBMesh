@@ -6,10 +6,10 @@ import random
 from typing import Dict, Any, Optional
 
 from bbmesh.plugins.base import InteractivePlugin, PluginContext, PluginResponse
-from .storage import TradeWarsStorage
-from .universe import UniverseManager
-from .trade_calculator import TradeCalculator
-from .formatters import MessageFormatter
+from .tradewars_storage import TradeWarsStorage
+from .tradewars_universe import UniverseManager
+from .tradewars_trade_calculator import TradeCalculator
+from .tradewars_formatters import MessageFormatter
 
 
 class TradeWarsPlugin(InteractivePlugin):
