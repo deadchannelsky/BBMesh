@@ -191,43 +191,46 @@ class TradeWarsPluginInstaller:
         """Register plugin in BBMesh builtin plugins registry"""
         builtin_file = self.plugins_dir / "builtin.py"
 
-        # Read the current builtin.py file
         with open(builtin_file, 'r') as f:
-            content = f.read()
+            lines = f.readlines()
 
-        # Check if tradewars plugin import already exists
-        if 'from .tradewars_plugin import TradeWarsPlugin' not in content:
-            # Add import after existing imports
-            import_line = "from .tradewars_plugin import TradeWarsPlugin\n"
+        # Check if import already exists
+        import_exists = any('from .tradewars_plugin import TradeWarsPlugin' in line for line in lines)
+        registry_exists = any('"tradewars": TradeWarsPlugin' in line for line in lines)
 
-            # Find the last import line
-            lines = content.split('\n')
-            import_index = 0
+        if import_exists and registry_exists:
+            print("Plugin already registered in builtin.py")
+            return
+
+        # Add import if missing
+        if not import_exists:
+            # Find last import line
+            last_import_idx = 0
             for i, line in enumerate(lines):
-                if line.startswith('from .') or line.startswith('import '):
-                    import_index = i
+                if line.strip().startswith('from .') or line.strip().startswith('import '):
+                    last_import_idx = i
 
-            # Insert the import
-            lines.insert(import_index + 1, import_line.rstrip())
+            import_line = "from .tradewars_plugin import TradeWarsPlugin\n"
+            lines.insert(last_import_idx + 1, import_line)
+            print("Added TradeWarsPlugin import")
 
-            # Add to BUILTIN_PLUGINS registry
-            registry_line = '    "tradewars": TradeWarsPlugin,'
-
-            # Find BUILTIN_PLUGINS dictionary
+        # Add registry entry if missing
+        if not registry_exists:
+            # Find BUILTIN_PLUGINS dict closing brace
             for i, line in enumerate(lines):
                 if 'BUILTIN_PLUGINS = {' in line:
-                    # Find the closing brace
+                    # Find closing brace
                     for j in range(i + 1, len(lines)):
                         if lines[j].strip() == '}':
+                            registry_line = '    "tradewars": TradeWarsPlugin,\n'
                             lines.insert(j, registry_line)
+                            print("Added TradeWarsPlugin to BUILTIN_PLUGINS registry")
                             break
                     break
 
-            # Write updated file
-            with open(builtin_file, 'w') as f:
-                f.write('\n'.join(lines))
-
-            print("Registered plugin in BBMesh builtin plugins registry")
+        # Write updated file
+        with open(builtin_file, 'w') as f:
+            f.writelines(lines)
 
     def install(self) -> None:
         """Perform complete installation of TradeWars plugin"""
