@@ -164,7 +164,7 @@ class InteractivePlugin(BBMeshPlugin):
         try:
             # Check for universal exit commands first
             user_input = context.message.text.strip().lower()
-            exit_commands = ["exit", "quit", "menu", "bbs", "main", "0"]
+            exit_commands = ["exit", "quit", "menu", "bbs", "main"]
 
             # Debug logging
             active_key = f"{self.name}_active"

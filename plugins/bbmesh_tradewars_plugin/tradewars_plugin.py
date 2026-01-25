@@ -404,6 +404,18 @@ class TradeWarsPlugin(InteractivePlugin):
             session_data[f"{self.name}_state"] = "SECTOR_VIEW"
             return self._handle_sector_view(context, player_id)
 
+        if user_input in ["H", "?"]:
+            # Help - redisplay navigation menu
+            ship = self.storage.get_ship_by_player_id(player_id)
+            sector = self.storage.get_sector(ship["current_sector"])
+            return PluginResponse(
+                text=self.formatter.navigation_menu(
+                    ship["current_sector"], sector["connected_sectors"]
+                ),
+                continue_session=True,
+                session_data=session_data
+            )
+
         if not user_input.isdigit():
             return PluginResponse(
                 text="Enter sector number",
@@ -512,6 +524,19 @@ class TradeWarsPlugin(InteractivePlugin):
                 session_data=session_data
             )
 
+        elif user_input in ["H", "?"]:
+            # Help - redisplay port menu
+            port = self.storage.get_port_by_id(port_id)
+            player = self.storage.get_player_by_id(player_id)
+            ship = self.storage.get_ship_by_player_id(player_id)
+            return PluginResponse(
+                text=self.formatter.port_menu(
+                    ship["current_sector"], player["credits"], port["credits"]
+                ),
+                continue_session=True,
+                session_data=session_data
+            )
+
         else:
             return PluginResponse(
                 text="Enter 1-3 or 0 to exit",
@@ -535,6 +560,15 @@ class TradeWarsPlugin(InteractivePlugin):
                     self.storage.get_ship_by_player_id(player_id)["current_sector"],
                     player["credits"], port["credits"]
                 ),
+                continue_session=True,
+                session_data=session_data
+            )
+
+        if user_input in ["H", "?"]:
+            # Help - redisplay buy menu
+            port = self.storage.get_port_by_id(port_id)
+            return PluginResponse(
+                text=self.formatter.buy_menu(port["inventory"]),
                 continue_session=True,
                 session_data=session_data
             )
@@ -616,6 +650,16 @@ class TradeWarsPlugin(InteractivePlugin):
                 session_data=session_data
             )
 
+        if user_input in ["H", "?"]:
+            # Help - redisplay sell menu
+            port = self.storage.get_port_by_id(port_id)
+            ship = self.storage.get_ship_by_player_id(player_id)
+            return PluginResponse(
+                text=self.formatter.sell_menu(port["inventory"], ship["cargo"]),
+                continue_session=True,
+                session_data=session_data
+            )
+
         if not user_input.isdigit() or int(user_input) < 1 or int(user_input) > 5:
             return PluginResponse(
                 text="Enter 1-5 or 0 to back",
@@ -685,6 +729,36 @@ class TradeWarsPlugin(InteractivePlugin):
                 text=self.formatter.port_menu(
                     self.storage.get_ship_by_player_id(player_id)["current_sector"],
                     player["credits"], port["credits"]
+                ),
+                continue_session=True,
+                session_data=session_data
+            )
+
+        if user_input in ["H", "?"]:
+            # Help - redisplay trade quantity prompt
+            port_id = session_data.get(f"{self.name}_port_id")
+            commodity = session_data.get(f"{self.name}_trade_commodity")
+            port = self.storage.get_port_by_id(port_id)
+            player = self.storage.get_player_by_id(player_id)
+            ship = self.storage.get_ship_by_player_id(player_id)
+            item = port["inventory"][commodity]
+            cargo_used = self.storage.get_cargo_used(ship["cargo"])
+
+            if session_data.get(f"{self.name}_trade_is_buying"):
+                max_units = min(
+                    item["quantity"],
+                    ship["cargo_holds"] - cargo_used,
+                    int(player["credits"] / item["price"])
+                )
+            else:
+                max_units = min(
+                    ship["cargo"][commodity],
+                    int(port["credits"] / item["price"])
+                )
+
+            return PluginResponse(
+                text=self.formatter.trade_quantity_prompt(
+                    commodity, max_units, item["price"], player["credits"]
                 ),
                 continue_session=True,
                 session_data=session_data
