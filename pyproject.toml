@@ -50,6 +50,7 @@ Issues = "https://github.com/deadchannelsky/BBMesh/issues"
 
 [project.scripts]
 bbmesh = "bbmesh.cli:main"
+bbmesh-nodes = "bbmesh.cli_nodes:cli"
 
 [tool.setuptools.packages.find]
 where = ["src"]

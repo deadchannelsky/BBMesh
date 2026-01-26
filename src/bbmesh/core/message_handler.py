@@ -13,6 +13,8 @@ from collections import defaultdict
 
 from .config import Config
 from .meshtastic_interface import MeshtasticInterface, MeshMessage
+from .node_tracker import NodeTracker
+from .admin_manager import AdminManager
 from ..utils.logger import BBMeshLogger
 from ..menus.menu_system import MenuSystem
 from ..plugins.builtin import BUILTIN_PLUGINS
@@ -102,6 +104,26 @@ class MessageHandler:
         self.menu_patterns = [
             r"^menu$", r"^main$", r"^bbs$", r"^start$"
         ]
+        
+        # Node tracking and admin notifications
+        self.node_tracker = None
+        self.admin_manager = None
+        if config.node_tracking.enabled:
+            try:
+                self.node_tracker = NodeTracker(
+                    db_path=config.database.path,
+                    threshold_days=config.node_tracking.new_node_threshold_days
+                )
+                self.admin_manager = AdminManager(
+                    db_path=config.database.path,
+                    config=config.node_tracking.__dict__,
+                    mesh_interface=mesh_interface
+                )
+                self.logger.info("Node tracking and admin notifications enabled")
+            except Exception as e:
+                self.logger.error(f"Failed to initialize node tracking: {e}")
+                self.node_tracker = None
+                self.admin_manager = None
         
     def initialize(self) -> None:
         """Initialize the message handler"""
@@ -239,6 +261,28 @@ class MessageHandler:
         session = self._get_or_create_session(message)
         session.last_activity = datetime.now()
         session.message_count += 1
+
+        # Track node activity and check for new nodes
+        if self.node_tracker and self.admin_manager:
+            try:
+                is_new = self.node_tracker.record_node_activity(
+                    message.sender_id,
+                    message.sender_name
+                )
+                
+                # Send notification if new node and notifications enabled
+                if is_new and self.config.node_tracking.notification_enabled:
+                    self.admin_manager.send_new_node_notification(
+                        message.sender_id,
+                        message.sender_name
+                    )
+            except Exception as e:
+                self.logger.error(f"Error in node tracking: {e}")
+
+        # Check for admin registration command FIRST (before plugin check)
+        if message.is_direct and message.text.strip().upper().startswith("ADMIN_REGISTER:"):
+            self._handle_admin_registration(message, session)
+            return
 
         # CRITICAL: Check for active plugin sessions FIRST
         # If a plugin is active, it owns ALL input - no BBS command parsing
@@ -455,6 +499,49 @@ class MessageHandler:
             self.logger.error(f"Error executing plugin {plugin_name}: {e}")
             error_response = f"❌ Plugin '{plugin_name}' encountered an error."
             self._send_response(message, session, error_response)
+    
+    def _handle_admin_registration(self, message: MeshMessage, session: UserSession) -> None:
+        """
+        Handle admin registration via PSK
+        
+        Args:
+            message: Message containing registration command
+            session: User session
+        """
+        if not self.admin_manager:
+            self.logger.warning("Admin registration attempted but node tracking disabled")
+            return
+        
+        try:
+            # Extract PSK from message: "ADMIN_REGISTER:psk-here"
+            parts = message.text.strip().split(":", 1)
+            if len(parts) != 2:
+                response = "❌ Invalid format. Use: ADMIN_REGISTER:your-psk"
+                self._send_response(message, session, response)
+                return
+            
+            provided_psk = parts[1]
+            
+            # Attempt registration
+            success = self.admin_manager.register_admin_via_psk(
+                message.sender_id,
+                message.sender_name,
+                provided_psk
+            )
+            
+            if success:
+                response = "✅ Admin registration successful! You will now receive new node notifications."
+                self.logger.info(f"Admin registered: {message.sender_name} ({message.sender_id})")
+            else:
+                response = "❌ Admin registration failed. Invalid PSK or registration disabled."
+                self.logger.warning(f"Failed admin registration attempt from {message.sender_id}")
+            
+            self._send_response(message, session, response)
+            
+        except Exception as e:
+            self.logger.error(f"Error handling admin registration: {e}")
+            response = "❌ Admin registration error. Please try again."
+            self._send_response(message, session, response)
     
     def _handle_mention(self, message: MeshMessage, session: UserSession) -> None:
         """Handle broadcast messages that mention the BBS"""

@@ -86,6 +86,18 @@ class DatabaseConfig:
 
 
 @dataclass
+class NodeTrackingConfig:
+    """Node tracking and admin notification configuration"""
+    enabled: bool = True
+    new_node_threshold_days: int = 30
+    notification_enabled: bool = True
+    notification_format: str = "🆕 {node_name} ({node_id})"
+    admin_nodes: List[str] = field(default_factory=list)
+    admin_psk: Optional[str] = None
+    psk_enabled: bool = True
+
+
+@dataclass
 class Config:
     """Main BBMesh configuration"""
     meshtastic: MeshtasticConfig = field(default_factory=MeshtasticConfig)
@@ -94,6 +106,7 @@ class Config:
     menu: MenuConfig = field(default_factory=MenuConfig)
     plugins: PluginConfig = field(default_factory=PluginConfig)
     database: DatabaseConfig = field(default_factory=DatabaseConfig)
+    node_tracking: NodeTrackingConfig = field(default_factory=NodeTrackingConfig)
     
     @classmethod
     def load(cls, config_path: Path) -> "Config":
@@ -144,6 +157,11 @@ class Config:
             for key, value in data["database"].items():
                 if hasattr(config.database, key):
                     setattr(config.database, key, value)
+        
+        if "node_tracking" in data:
+            for key, value in data["node_tracking"].items():
+                if hasattr(config.node_tracking, key):
+                    setattr(config.node_tracking, key, value)
         
         return config
     
@@ -198,6 +216,15 @@ class Config:
                 "type": self.database.type,
                 "path": self.database.path,
                 "backup_interval": self.database.backup_interval,
+            },
+            "node_tracking": {
+                "enabled": self.node_tracking.enabled,
+                "new_node_threshold_days": self.node_tracking.new_node_threshold_days,
+                "notification_enabled": self.node_tracking.notification_enabled,
+                "notification_format": self.node_tracking.notification_format,
+                "admin_nodes": self.node_tracking.admin_nodes,
+                "admin_psk": self.node_tracking.admin_psk,
+                "psk_enabled": self.node_tracking.psk_enabled,
             },
         }
     

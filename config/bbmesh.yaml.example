@@ -52,3 +52,11 @@ database:
   type: sqlite
   path: data/bbmesh.db
   backup_interval: 3600
+node_tracking:
+  enabled: true
+  new_node_threshold_days: 30
+  notification_enabled: true
+  notification_format: '🆕 {node_name} ({node_id})'
+  admin_nodes: []
+  admin_psk: null
+  psk_enabled: true
