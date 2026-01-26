@@ -742,6 +742,11 @@ class MeshtasticInterface:
             self.logger.error(f"Health check failed: {e}")
             return False
 
+        # Check if we're receiving messages (connection could be silently dead)
+        if self._is_message_timeout():
+            self.logger.warning("Message timeout detected - connection appears stalled")
+            return False
+
         return True
 
     def _is_message_timeout(self) -> bool:
