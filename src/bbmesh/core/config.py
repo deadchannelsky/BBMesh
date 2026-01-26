@@ -53,6 +53,11 @@ class ServerConfig:
     rate_limit_window: int = 60  # seconds
     message_send_delay: float = 1.0  # seconds
 
+    # Health monitoring settings
+    health_check_interval: int = 60  # Check connection every 60 seconds
+    message_timeout_warning: int = 1800  # Warn if no messages for 30 minutes
+    auto_reconnect: bool = True  # Auto-reconnect on health check failure
+
 
 @dataclass
 class MenuConfig:
@@ -173,6 +178,9 @@ class Config:
                 "rate_limit_messages": self.server.rate_limit_messages,
                 "rate_limit_window": self.server.rate_limit_window,
                 "message_send_delay": self.server.message_send_delay,
+                "health_check_interval": self.server.health_check_interval,
+                "message_timeout_warning": self.server.message_timeout_warning,
+                "auto_reconnect": self.server.auto_reconnect,
             },
             "menu": {
                 "menu_file": self.menu.menu_file,
@@ -259,10 +267,17 @@ class Config:
         # Check timeout values
         if self.server.session_timeout < 60:
             errors.append("server.session_timeout should be at least 60 seconds")
-        
+
         if self.plugins.plugin_timeout < 5:
             errors.append("plugins.plugin_timeout should be at least 5 seconds")
-        
+
+        # Check health monitoring settings
+        if self.server.health_check_interval < 10:
+            errors.append("server.health_check_interval should be at least 10 seconds")
+
+        if self.server.message_timeout_warning < 300:
+            errors.append("server.message_timeout_warning should be at least 300 seconds (5 minutes)")
+
         return errors
     
     def create_service_config(self, install_dir: str = "/opt/bbmesh") -> "Config":

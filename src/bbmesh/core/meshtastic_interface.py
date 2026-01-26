@@ -54,6 +54,10 @@ class MeshtasticInterface:
         self._stop_event = threading.Event()
         self._connection_lock = threading.Lock()  # Prevent concurrent connection attempts
         self._last_message_time: float = 0.0  # Track last message send time for delay enforcement
+
+        # Health monitoring attributes
+        self.last_received_message_time: Optional[datetime] = None  # Track when we last received a message
+        self.message_timeout: int = 1800  # 30 minutes - warn if no messages received
         
     def connect(self, max_retries: int = 3) -> bool:
         """
@@ -717,6 +721,75 @@ class MeshtasticInterface:
         except Exception as e:
             self.logger.error(f"Error validating direct message configuration: {e}")
 
+    def _check_connection_health(self) -> bool:
+        """
+        Verify connection is alive by checking interface state.
+        Returns True if healthy, False if needs reconnection.
+        """
+        if not self.connected:
+            return False
+
+        if not self.interface:
+            self.logger.warning("Interface object lost - reconnection needed")
+            return False
+
+        # Check if Meshtastic interface still has node info
+        try:
+            if not self.interface.myInfo:
+                self.logger.warning("Lost node info - connection degraded")
+                return False
+        except Exception as e:
+            self.logger.error(f"Health check failed: {e}")
+            return False
+
+        return True
+
+    def _is_message_timeout(self) -> bool:
+        """
+        Check if we haven't received messages in too long
+        Returns True if timeout exceeded, False otherwise
+        """
+        if self.last_received_message_time is None:
+            return False  # No messages yet since startup
+
+        time_since_last = (datetime.now() - self.last_received_message_time).total_seconds()
+
+        # Warn if no messages for extended period
+        # (But don't trigger on legitimate idle networks)
+        if time_since_last > self.message_timeout:
+            self.logger.warning(f"No messages received in {time_since_last:.0f}s")
+            return True
+
+        return False
+
+    def reconnect(self) -> bool:
+        """
+        Attempt to reconnect to Meshtastic device.
+        Returns True if successful.
+        """
+        self.logger.info("Attempting reconnection...")
+
+        # Disconnect cleanly
+        try:
+            self.disconnect()
+        except Exception as e:
+            self.logger.warning(f"Error during disconnect: {e}")
+
+        # Wait briefly for serial port to settle
+        time.sleep(2.0)
+
+        # Reconnect
+        success = self.connect(max_retries=3)
+
+        if success:
+            self.logger.info("Reconnection successful")
+            # Reset last message time
+            self.last_received_message_time = datetime.now()
+        else:
+            self.logger.error("Reconnection failed")
+
+        return success
+
     def _cleanup_port_locks(self) -> None:
         """
         Clean up stale serial port lock files when disconnecting.
@@ -1065,12 +1138,15 @@ class MeshtasticInterface:
     def _on_receive(self, packet: Dict[str, Any], interface=None) -> None:
         """
         Handle received Meshtastic packets
-        
+
         Args:
             packet: Received packet data
             interface: Meshtastic interface (unused)
         """
         try:
+            # Update last message timestamp - track that we're receiving messages
+            self.last_received_message_time = datetime.now()
+
             # Extract packet information
             decoded = packet.get('decoded', {})
             

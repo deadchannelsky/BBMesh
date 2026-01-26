@@ -32,10 +32,13 @@ class BBMeshServer:
         
         # Initialize components
         self.mesh_interface = MeshtasticInterface(
-            config.meshtastic, 
+            config.meshtastic,
             config.server.message_send_delay,
             config.server.max_message_length
         )
+        # Configure health monitoring settings
+        self.mesh_interface.message_timeout = config.server.message_timeout_warning
+
         self.message_handler = MessageHandler(config, self.mesh_interface, self.motd_content)
         
         # Setup signal handlers for graceful shutdown
@@ -90,22 +93,30 @@ class BBMeshServer:
     def _run_server_loop(self) -> None:
         """Main server event loop"""
         last_status_log = 0
+        last_health_check = 0
         status_interval = 300  # Log status every 5 minutes
-        
+        health_check_interval = self.config.server.health_check_interval  # Use configured interval
+
         try:
             while self.running:
-                # Log periodic status
                 current_time = time.time()
+
+                # Log periodic status
                 if current_time - last_status_log > status_interval:
                     self._log_status()
                     last_status_log = current_time
-                
+
+                # Perform health check
+                if current_time - last_health_check > health_check_interval:
+                    self._perform_health_check()
+                    last_health_check = current_time
+
                 # Process any pending tasks
                 self.message_handler.process_pending_tasks()
-                
+
                 # Sleep to prevent busy waiting
                 time.sleep(1.0)
-                
+
         except KeyboardInterrupt:
             self.logger.info("Received keyboard interrupt")
         except Exception as e:
@@ -176,20 +187,62 @@ class BBMeshServer:
         try:
             # Get mesh network info
             mesh_info = self.mesh_interface.get_mesh_info()
-            
+
             # Get message handler stats
             handler_stats = self.message_handler.get_statistics()
-            
+
+            # Check actual connection health, not just flag
+            is_healthy = self.mesh_interface._check_connection_health()
+
+            # Calculate time since last message
+            from datetime import datetime
+            last_msg_time = self.mesh_interface.last_received_message_time
+            if last_msg_time:
+                time_since_msg = (datetime.now() - last_msg_time).total_seconds()
+                msg_status = f"last_msg={time_since_msg:.0f}s_ago"
+            else:
+                msg_status = "no_messages_yet"
+
             self.logger.info(
                 f"Status - Connected: {mesh_info.get('connected', False)}, "
+                f"Healthy: {is_healthy}, "
                 f"Nodes: {mesh_info.get('node_count', 0)}, "
                 f"Messages: {handler_stats.get('total_messages', 0)}, "
-                f"Active Sessions: {handler_stats.get('active_sessions', 0)}"
+                f"Active Sessions: {handler_stats.get('active_sessions', 0)}, "
+                f"{msg_status}"
             )
-            
+
         except Exception as e:
             self.logger.warning(f"Error logging status: {e}")
-    
+
+    def _perform_health_check(self) -> None:
+        """Perform connection health check and auto-recovery"""
+        try:
+            # Check if connection is healthy
+            is_healthy = self.mesh_interface._check_connection_health()
+
+            if not is_healthy:
+                self.logger.warning("Connection health check failed")
+
+                # Only attempt reconnection if auto_reconnect is enabled
+                if self.config.server.auto_reconnect:
+                    self.logger.info("Attempting automatic recovery...")
+
+                    # Attempt reconnection
+                    success = self.mesh_interface.reconnect()
+
+                    if success:
+                        self.logger.info("Connection recovered successfully")
+                        # Re-register message callback after reconnection
+                        self.mesh_interface.add_message_callback(self._on_message_received)
+                    else:
+                        self.logger.error("Failed to recover connection - will retry next cycle")
+                else:
+                    self.logger.warning("Auto-reconnect disabled - manual intervention required")
+
+        except Exception as e:
+            self.logger.error(f"Health check error: {e}")
+
     def _signal_handler(self, signum: int, frame) -> None:
         """
         Handle system signals for graceful shutdown
