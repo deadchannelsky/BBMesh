@@ -26,14 +26,18 @@ A bulletin board system (BBS) for Meshtastic mesh networks, inspired by the clas
    pip install -e .
    ```
 
-2. **Generate default configuration**:
+2. **Copy example configuration files**:
    ```bash
-   bbmesh init-config
+   cp config/bbmesh.yaml.example config/bbmesh.yaml
+   cp config/plugins.yaml.example config/plugins.yaml
+   cp config/menus.yaml.example config/menus.yaml
+   cp config/motd.txt.example config/motd.txt
    ```
 
 3. **Edit configuration** to match your setup:
    ```bash
-   nano config/bbmesh.yaml
+   nano config/bbmesh.yaml      # Update serial port
+   nano config/plugins.yaml     # Update AI model name if using AskAI
    ```
 
 4. **Start the server**:
@@ -45,9 +49,16 @@ A bulletin board system (BBS) for Meshtastic mesh networks, inspired by the clas
 
 BBMesh uses YAML configuration files located in the `config/` directory:
 
-- `bbmesh.yaml`: Main system configuration
+- `bbmesh.yaml`: Main system configuration (serial port, channels, logging)
+- `plugins.yaml`: Plugin settings and parameters (AI model, timeouts, features)
 - `menus.yaml`: Menu structure and navigation
-- `plugins.yaml`: Plugin settings and parameters
+- `motd.txt`: Welcome message displayed to users
+
+**Important:** Configuration files are environment-specific and not tracked in git. Use the provided `.example` files as templates:
+- `bbmesh.yaml.example`
+- `plugins.yaml.example`
+- `menus.yaml.example`
+- `motd.txt.example`
 
 See the [Configuration Guide](docs/configuration.md) for detailed setup instructions.
 

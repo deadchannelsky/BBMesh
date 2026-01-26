@@ -34,6 +34,15 @@ This guide will help you set up and run your BBMesh BBS system.
    pip install -e .
    ```
 
+### 3. Configuration Setup
+1. Copy example configuration files:
+   ```bash
+   cp config/bbmesh.yaml.example config/bbmesh.yaml
+   cp config/plugins.yaml.example config/plugins.yaml
+   cp config/menus.yaml.example config/menus.yaml
+   cp config/motd.txt.example config/motd.txt
+   ```
+
 2. Find your serial port:
    ```bash
    # List USB devices
@@ -42,7 +51,7 @@ This guide will help you set up and run your BBMesh BBS system.
    ls /dev/ttyACM*
    ```
 
-3. Update configuration:
+3. Update main configuration:
    ```bash
    nano config/bbmesh.yaml
    ```
@@ -54,13 +63,29 @@ This guide will help you set up and run your BBMesh BBS system.
        port: "/dev/ttyUSB0"  # Update this line
    ```
 
-### 3. Test Installation
+4. Configure AI plugin (if using AskAI feature):
+   ```bash
+   nano config/plugins.yaml
+   ```
+   
+   Update the model name to match your installed Ollama model:
+   ```yaml
+   askai:
+     model: granite:latest  # Change from llama2 to your model
+   ```
+   
+   To check available models:
+   ```bash
+   ollama list
+   ```
+
+### 4. Test Installation
 Run the test script to verify everything works:
 ```bash
 python test_bbmesh.py
 ```
 
-### 4. Start BBMesh
+### 5. Start BBMesh
 ```bash
 bbmesh start
 ```

@@ -1,0 +1,92 @@
+menus:
+  main:
+    title: BBMesh Main Menu
+    description: Welcome to the BBMesh BBS system
+    options:
+      1:
+        title: Help & Commands
+        action: show_help
+        description: Display available commands and help information
+      2:
+        title: System Status
+        action: show_status
+        description: Display system and mesh network status
+      3:
+        title: Time & Date
+        action: show_time
+        description: Display current date and time
+      4:
+        title: Mesh Info
+        action: show_mesh_info
+        description: Display mesh network information
+      5:
+        title: Games & Fun
+        action: goto_menu
+        target: games
+        description: Access games and entertainment
+      6:
+        title: Utilities
+        action: goto_menu
+        target: utilities
+        description: Useful tools and calculators
+      7:
+        title: AskAI
+        action: run_plugin
+        plugin: askai
+        description: Ask questions to local AI assistant
+      9:
+        title: About BBMesh
+        action: show_about
+        description: Information about this BBS system
+  games:
+    title: Games & Entertainment
+    description: Fun activities and games
+    parent: main
+    options:
+      1:
+        title: Number Guessing Game
+        action: run_plugin
+        plugin: number_guess
+        description: Escalating difficulty game - start at 1-5
+      2:
+        title: Back to Main Menu
+        action: goto_menu
+        target: main
+        description: Return to main menu
+  utilities:
+    title: Utilities & Tools
+    description: Helpful tools and calculators
+    parent: main
+    options:
+      1:
+        title: Calculator
+        action: run_plugin
+        plugin: calculator
+        description: Basic calculator functions
+      2:
+        title: Node Lookup
+        action: run_plugin
+        plugin: node_lookup
+        description: Look up information about mesh nodes
+      3:
+        title: Back to Main Menu
+        action: goto_menu
+        target: main
+        description: Return to main menu
+settings:
+  show_numbers: true
+  show_descriptions: false
+  max_options_per_page: 8
+  timeout_seconds: 300
+  back_commands:
+  - back
+  - b
+  - ..
+  home_commands:
+  - home
+  - main
+  - menu
+  help_commands:
+  - help
+  - h
+  - '?'

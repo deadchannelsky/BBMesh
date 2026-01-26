@@ -149,3 +149,11 @@ Thumbs.db
 # Temporary files
 *.tmp
 *.temp
+
+# Environment-specific configuration
+config/bbmesh.yaml
+config/plugins.yaml
+config/menus.yaml
+config/motd.txt
+config/backups/
+data/*.db

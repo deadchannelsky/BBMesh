@@ -1,0 +1,54 @@
+meshtastic:
+  serial:
+    port: /dev/ttyACM0  # Update to match your system (e.g., /dev/ttyUSB0, COM3)
+    baudrate: 921600
+    timeout: 1.0
+  node_id: null  # Auto-detected from connected device
+  monitored_channels:
+  - 0
+  - 1
+  - 2
+  response_channels:
+  - 0
+  - 1
+  - 2
+  direct_message_only: false
+logging:
+  level: INFO  # Options: DEBUG, INFO, WARNING, ERROR, CRITICAL
+  format: '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+  file_path: logs/bbmesh.log
+  max_file_size: 10MB
+  backup_count: 5
+  console_output: true
+server:
+  name: BBMesh BBS
+  welcome_message: Welcome to BBMesh BBS! Your gateway to the mesh network.
+  motd_file: config/motd.txt
+  max_message_length: 200
+  session_timeout: 300
+  rate_limit_messages: 10
+  rate_limit_window: 60
+  message_send_delay: 1.0
+menu:
+  menu_file: config/menus.yaml
+  timeout: 300
+  max_depth: 10
+  prompt_suffix: ' > '
+plugins:
+  plugin_dir: src/bbmesh/plugins
+  plugin_config_file: config/plugins.yaml
+  enabled_plugins:
+  - welcome
+  - help
+  - time
+  - ping
+  - status
+  - calculator
+  - number_guess
+  - node_lookup
+  - askai
+  plugin_timeout: 30
+database:
+  type: sqlite
+  path: data/bbmesh.db
+  backup_interval: 3600
