@@ -233,8 +233,7 @@ class BBMeshServer:
 
                     if success:
                         self.logger.info("Connection recovered successfully")
-                        # Re-register message callback after reconnection
-                        self.mesh_interface.add_message_callback(self._on_message_received)
+                        # Note: Callbacks persist across reconnects, no need to re-register
                     else:
                         self.logger.error("Failed to recover connection - will retry next cycle")
                 else:
