@@ -1149,15 +1149,16 @@ class MeshtasticInterface:
             interface: Meshtastic interface (unused)
         """
         try:
-            # Update last message timestamp - track that we're receiving messages
-            self.last_received_message_time = datetime.now()
-
             # Extract packet information
             decoded = packet.get('decoded', {})
-            
+
             # Only process text messages
             if decoded.get('portnum') != 'TEXT_MESSAGE_APP':
                 return
+
+            # Update last message timestamp - track that we're receiving TEXT messages
+            # (Must be after TEXT_MESSAGE_APP check to avoid false positives from telemetry/position packets)
+            self.last_received_message_time = datetime.now()
             
             # Extract message data
             from_id_numeric = str(packet.get('from', 'unknown'))
